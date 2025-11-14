@@ -64,7 +64,7 @@ class Weapon(ABC):
 
     def is_available(self) -> bool:
         pass
-
+#67
 
 class MeleeWeapon(Weapon):
 
