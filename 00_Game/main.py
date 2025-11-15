@@ -49,6 +49,9 @@ class Bonus(ABC):
               player: Player) -> None:
         pass
 
+    def symbol(self) -> str:
+        pass
+
 
 class Weapon(ABC):
 
@@ -77,6 +80,7 @@ class RangedWeapon(Weapon):
 
     def __init__(self,
                  ammo: int):
+        super().__init__("", 0.0)
         self.ammo = ammo
 
     def consume_ammo(self,
@@ -88,30 +92,38 @@ class RangedWeapon(Weapon):
         pass
 
 
-class Structure(ABC, Entity):
+class Structure(Entity):
 
     @abstractmethod
     def interact(self,
                  player: Player) -> None:
         pass
 
+    def symbol(self) -> str:
+        pass
 
-class Enemy(ABC, Entity, Damageable, Attacker):
+
+class Enemy(Entity, Damageable, Attacker):
 
     def __init__(self,
                  lvl: int,
                  max_enemy_damage: float,
                  reward_coins: int):
+        Entity.__init__(self, (0, 0))
+        Damageable.__init__(self, 0.0, 0.0)
         self.lvl = lvl
         self.max_enemy_damage = max_enemy_damage
         self.reward_coins = reward_coins
-    
+
     @abstractmethod
     def before_turn(self,
                     player: Player) -> None:
         pass
 
     def roll_enemy_damage(self) -> float:
+        pass
+
+    def symbol(self) -> str:
         pass
 
 
@@ -126,6 +138,8 @@ class Player(Entity, Damageable, Attacker):
                  status: dict[str, int],
                  rage: float = 1.0,
                  accuracy: float = 1.0):
+        Entity.__init__(self, (0, 0))
+        Damageable.__init__(self, 0.0, 0.0)
         self.lvl = lvl
         self.weapon = weapon
         self.inventory = inventory
@@ -160,6 +174,9 @@ class Player(Entity, Damageable, Attacker):
     def buy_auto_if_needed(self,
                            bonus_factory: callable[[str], Bonus]) -> None:
         pass
+    
+    def symbol(self) -> str:
+        pass
 
 
 # Enemies
@@ -173,12 +190,12 @@ class Rat(Enemy):
                  infection_damage_base: float = 5.0,
                  infection_turns: int = 3,
                  reward_coins: int = 200):
+        super().__init__(1, 10.0, reward_coins)
         self.infection_chance = infection_chance
         self.flee_chance_low_hp = flee_chance_low_hp
         self.flee_treshold = flee_treshold
         self.infection_damage_base = infection_damage_base
         self.infection_turns = infection_turns
-        self.reward_coins = reward_coins
 
     def before_turn(self,
                     player: Player) -> None:
@@ -197,11 +214,11 @@ class Spider(Enemy):
                  poison_damage_base: float = 15.0,
                  poison_turns: int = 2,
                  reward_coins: int = 250):
+        super().__init__(1, 15.0, reward_coins)
         self.poison_chance = poison_chance
         self.summon_chance_low_hp = summon_chance_low_hp
         self.poison_damage_base = poison_damage_base
         self.poison_turns = poison_turns
-        self.reward_coins = reward_coins
 
     def before_turn(self,
                     player: Player) -> None:
@@ -217,8 +234,8 @@ class Skeleton(Enemy):
     def __init__(self,
                  weapon: Weapon,
                  reward_coins: int = 150):
+        super().__init__(1, 20.0, reward_coins)
         self.weapon = weapon
-        self.reward_coins = reward_coins
 
     def before_turn(self,
                     player: Player):
@@ -240,8 +257,7 @@ class Fist(MeleeWeapon):
     def __init__(self,
                  name = "Кулак",
                  max_damage: float = 20):
-        self.name = name
-        self.max_damage = max_damage
+        super().__init__(name, max_damage)
 
     def damage(self,
                rage: float) -> float:
@@ -254,9 +270,8 @@ class Stick(MeleeWeapon):
                  durabilty: int,
                  name = "Палка",
                  max_damage: float = 25):
+        super().__init__(name, max_damage)
         self.durabilty = durabilty
-        self.name = name
-        self.max_damage = max_damage
 
     def is_available(self) -> bool:
         pass
@@ -272,7 +287,7 @@ class Bow(RangedWeapon):
                  ammo: int,
                  name = "Лук",
                  max_damage: float = 35):
-        self.ammo = ammo
+        super().__init__(ammo)
         self.name = name
         self.max_damage = max_damage
 
@@ -290,7 +305,7 @@ class Revolver(RangedWeapon):
                  ammo: int,
                  name = "Револьвер",
                  max_damage: float = 45):
-        self.ammo = ammo
+        super().__init__(ammo)
         self.name = name
         self.max_damage = max_damage
 
@@ -366,9 +381,11 @@ class Tower(Structure):
 
     def __init__(self,
                  reveal_radius: int = 2):
+        super().__init__((0, 0))
         self.reveal_radius = reveal_radius
 
     def interact(self,
+                 player: Player,
                  board: Board):
         pass
 
@@ -413,9 +430,9 @@ def start(n: int,
           player_lvl: int) -> tuple[Board, Player]:
     pass
 
-def game() -> None:
+def game(board: Board,
+         player: Player) -> None:
     pass
 
 def main() -> None:
     pass
-
