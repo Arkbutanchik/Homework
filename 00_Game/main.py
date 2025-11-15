@@ -50,7 +50,7 @@ class Bonus(ABC):
         pass
 
     def symbol(self) -> str:
-        pass
+        return "B"
 
 
 class Weapon(ABC):
@@ -99,9 +99,6 @@ class Structure(Entity):
                  player: Player) -> None:
         pass
 
-    def symbol(self) -> str:
-        pass
-
 
 class Enemy(Entity, Damageable, Attacker):
 
@@ -124,7 +121,7 @@ class Enemy(Entity, Damageable, Attacker):
         pass
 
     def symbol(self) -> str:
-        pass
+        return "E"
 
 
 # Specific classes
@@ -174,9 +171,9 @@ class Player(Entity, Damageable, Attacker):
     def buy_auto_if_needed(self,
                            bonus_factory: callable[[str], Bonus]) -> None:
         pass
-    
+
     def symbol(self) -> str:
-        pass
+        return "P"
 
 
 # Enemies
@@ -389,6 +386,9 @@ class Tower(Structure):
                  board: Board):
         pass
 
+    def symbol(self) -> str:
+        return "T"
+
 
 # Board
 
@@ -399,29 +399,46 @@ class Board:
                  cols: int,
                  grid: list[list[tuple[Entity | None, bool]]],
                  start: tuple[int, int] = (0, 0),
-                 goal: tuple[int, int] = (0, 0)):
+                 goal: tuple[int, int] = None):
         self.rows = rows
         self.cols = cols
         self.grid = grid
         self.start = start
-        self.goal = goal
+        if goal is None:
+            self.goal = (rows - 1, cols - 1)
+        else: self.goal = goal
 
     def place(self,
               entity: Entity,
               pos: tuple[int, int]) -> None:
-        pass
+        self.grid[pos[0]][pos[1]] = entity
 
     def entity_at(self,
                   pos: tuple[int, int]) -> Entity | None:
-        pass
+        return self.grid[pos[0]][pos[1]]
 
     def in_bounds(self,
                   pos: tuple[int, int]) -> bool:
-        pass
+        if 0 <= pos[0] <= (self.rows-1) and 0 <= pos[1] <= (self.cols-1):
+            return True
+        else: return False
 
     def render(self,
                player: Player):
-        pass
+        print("-" * (self.cols * 2 + 1))
+        for x in range(self.rows):
+            print("|", end = "")
+            for y in range(self.cols):
+                if player.position == (x, y):
+                    print(player.symbol)
+                else:
+                    if self.grid[x][y][1]:
+                        if self.grid[x][y][1]:
+                            if self.grid[x][y][0] is None:
+                                print(" ")
+                            else: print(self.grid[x][y][0])
+                        else: print("X")
+        print("-" * (self.cols * 2 + 1))
 
 # Initialization
 
