@@ -1,4 +1,5 @@
 from abc import ABC, abstractmethod
+from random import randint
 
 
 # Abstract classes
@@ -42,7 +43,7 @@ class Attacker(ABC):
         pass
 
 
-class Bonus(ABC):
+class Bonus(Entity):
 
     @abstractmethod
     def apply(self,
@@ -53,11 +54,13 @@ class Bonus(ABC):
         return "B"
 
 
-class Weapon(ABC):
+class Weapon(Entity):
 
     def __init__(self,
+                 position: tuple[int, int],
                  name: str,
                  max_damage: float):
+        super().__init__(position)
         self.name = name
         self.max_damage = max_damage
 
@@ -77,18 +80,19 @@ class MeleeWeapon(Weapon):
 
 
 class RangedWeapon(Weapon):
-
+    
     def __init__(self,
-                 ammo: int):
-        super().__init__("", 0.0)
+                 position: tuple[int, int],
+                 name: str,
+                 max_damage:
+                     float, ammo: int):
+        super().__init__(position, name, max_damage)
         self.ammo = ammo
 
-    def consume_ammo(self,
-                     n: int = 1) -> bool:
+    def consume_ammo(self, n: int = 1) -> bool:
         pass
 
-    def damage(self,
-               accuracy: float) -> float:
+    def damage(self, accuracy: float) -> float:
         pass
 
 
@@ -251,42 +255,37 @@ class Skeleton(Enemy):
 
 class Fist(MeleeWeapon):
     
-    def __init__(self,
-                 name = "Кулак",
-                 max_damage: float = 20):
-        super().__init__(name, max_damage)
+    def __init__(self, position: tuple[int, int], name: str = "Кулак", max_damage: float = 20):
+        super().__init__(position, name, max_damage)  # Fixed parameter order
 
-    def damage(self,
-               rage: float) -> float:
+    def damage(self, rage: float) -> float:
         pass
 
-
 class Stick(MeleeWeapon):
-
+    
     def __init__(self,
-                 durabilty: int,
-                 name = "Палка",
+                 position: tuple[int, int],
+                 durability: int,
+                 name: str = "Палка",
                  max_damage: float = 25):
-        super().__init__(name, max_damage)
-        self.durabilty = durabilty
+        super().__init__(position, name, max_damage)
+        self.durability = durability
 
     def is_available(self) -> bool:
         pass
 
-    def damage(self,
-               rage: float) -> float:
+    def damage(self, rage: float) -> float:
         pass
 
 
 class Bow(RangedWeapon):
 
     def __init__(self,
+                 position: tuple[int, int],
                  ammo: int,
                  name = "Лук",
                  max_damage: float = 35):
-        super().__init__(ammo)
-        self.name = name
-        self.max_damage = max_damage
+        super().__init__(position, name, max_damage, ammo)
 
     def is_available(self) -> bool:
         pass
@@ -299,12 +298,11 @@ class Bow(RangedWeapon):
 class Revolver(RangedWeapon):
 
     def __init__(self,
+                 position: tuple[int, int],
                  ammo: int,
                  name = "Револьвер",
                  max_damage: float = 45):
-        super().__init__(ammo)
-        self.name = name
-        self.max_damage = max_damage
+        super().__init__(position, name, max_damage, ammo)
 
     def is_available(self) -> bool:
         pass
@@ -319,7 +317,9 @@ class Revolver(RangedWeapon):
 class Medkit(Bonus):
 
     def __init__(self,
+                 position: tuple[int, int],
                  power: int):
+        super().__init__(position)
         self.power = power
 
     def apply(self,
@@ -330,7 +330,9 @@ class Medkit(Bonus):
 class Rage(Bonus):
 
     def __init__(self,
+                 position: tuple[int, int],
                  multiplier: float):
+        super().__init__(position)
         self.multiplier = float
 
     def apply(self,
@@ -340,7 +342,9 @@ class Rage(Bonus):
 class Bullets(Bonus):
     
     def __init__(self,
+                 position: tuple[int, int],
                  amount: int):
+        super().__init__(position)
         self.amount = amount
 
     def apply(self,
@@ -351,8 +355,10 @@ class Bullets(Bonus):
 class Accuracy(Bonus):
 
     def __init__(self,
+                 position: tuple[int, int],
                  multiplier: float,
                  price: int = 50):
+        super().__init__(position)
         self.multiplier = multiplier
         self.price = price
 
@@ -364,7 +370,9 @@ class Accuracy(Bonus):
 class Coins(Bonus):
     
     def __init__(self,
+                 position: tuple[int, int],
                  amount: int):
+        super().__init__(position)
         self.amount = amount
 
     def apply(self,
@@ -377,8 +385,9 @@ class Coins(Bonus):
 class Tower(Structure):
 
     def __init__(self,
+                 position: tuple[int, int],
                  reveal_radius: int = 2):
-        super().__init__((0, 0))
+        super().__init__(position)
         self.reveal_radius = reveal_radius
 
     def interact(self,
