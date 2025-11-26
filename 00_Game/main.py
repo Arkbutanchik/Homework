@@ -1,5 +1,6 @@
 from abc import ABC, abstractmethod
-from random import randint
+from random import shuffle, randint
+from math import floor
 
 
 # Abstract classes
@@ -339,6 +340,18 @@ class Rage(Bonus):
               player: Player) -> None:
         pass
 
+class Arrows(Bonus):
+    
+    def __init__(self,
+                 position: tuple[int, int],
+                 amount: int):
+        super().__init__(position)
+        self.amount = amount
+
+    def apply(self,
+              player: Player) -> None:
+        pass
+
 class Bullets(Bonus):
     
     def __init__(self,
@@ -454,7 +467,45 @@ class Board:
 def start(n: int,
           m: int,
           player_lvl: int) -> tuple[Board, Player]:
-    pass
+    
+    available_cells = n*m-2
+    tower_cells = floor(n*m * 0.01)
+    weapon_cells = floor(n*m * 0.05)
+    bonus_cells = floor(n*m * 0.3)
+    enemy_cells = floor(n*m * 0.15)
+    empty_cells = available_cells - tower_cells - weapon_cells - bonus_cells - enemy_cells
+    
+    grid_to_be_filled = ["T"] * tower_cells + ["W"] * weapon_cells + ["B"] * bonus_cells + ["E"] * enemy_cells + [" "] * empty_cells
+    shuffle(grid_to_be_filled)
+    grid_to_be_filled = [" "] + grid_to_be_filled + [" "]
+    
+    grid = [[None for _ in range(n)] for _ in range(m)]
+
+    for x in range(m):
+        for y in range(n):
+            cell = grid_to_be_filled[x*n+y]
+            if cell == "T": cell = Tower((x, y))
+            if cell == "W":
+                weapons = [Stick((x, y)), Bow((x, y)), Revolver((x, y))]
+                cell = weapons[randint(0, 2)]
+            if cell == "B":
+                bonuses = [Medkit((x, y)), Rage((x, y)), Arrows((x, y)), Bullets((x, y)), Accuracy((x, y)), Coins((x, y))]
+                cell = bonuses[randint(0, 5)]
+            if cell == "E":
+                enemies = [Rat((x, y)), Spider((x, y)), ((x, y))]
+                cell = enemies[randint(0, 2)]
+            if cell == " ": cell = None
+            grid[x][y] = (cell, False)
+        
+    print(grid_to_be_filled)
+    print(grid)
+    
+    board = Board(
+        rows = m, 
+        cols = n,
+
+    )
+
 
 def game(board: Board,
          player: Player) -> None:
@@ -462,3 +513,7 @@ def game(board: Board,
 
 def main() -> None:
     pass
+
+
+start(3, 4, 1)
+
