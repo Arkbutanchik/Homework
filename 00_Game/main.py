@@ -108,13 +108,10 @@ class Structure(Entity):
 class Enemy(Entity, Damageable, Attacker):
 
     def __init__(self,
-                 lvl: int,
-                 max_enemy_damage: float,
                  reward_coins: int):
         Entity.__init__(self, (0, 0))
         Damageable.__init__(self, 0.0, 0.0)
-        self.lvl = lvl
-        self.max_enemy_damage = max_enemy_damage
+        self.lvl = randint(1, 10)
         self.reward_coins = reward_coins
 
     @abstractmethod
@@ -141,11 +138,11 @@ class Player(Entity, Damageable, Attacker):
                  rage: float = 1.0,
                  accuracy: float = 1.0):
         Entity.__init__(self, (0, 0))
-        Damageable.__init__(self, 0.0, 0.0)
+        Damageable.__init__(self, 0.0, 150 * (1 + lvl / 10))
         self.lvl = lvl
         self.weapon = weapon
         self.inventory = inventory
-        self.status =status
+        self.status = status
         self.rage = rage
         self.accuracy = accuracy
         
@@ -192,7 +189,8 @@ class Rat(Enemy):
                  infection_damage_base: float = 5.0,
                  infection_turns: int = 3,
                  reward_coins: int = 200):
-        super().__init__(1, 10.0, reward_coins)
+        super().__init__(reward_coins)
+        self.max_enemy_damage = 15 * (1 + self.lvl / 10)
         self.infection_chance = infection_chance
         self.flee_chance_low_hp = flee_chance_low_hp
         self.flee_treshold = flee_treshold
@@ -216,7 +214,8 @@ class Spider(Enemy):
                  poison_damage_base: float = 15.0,
                  poison_turns: int = 2,
                  reward_coins: int = 250):
-        super().__init__(1, 15.0, reward_coins)
+        super().__init__(reward_coins)
+        self.max_enemy_damage = 20 * (1 + self.lvl / 10)
         self.poison_chance = poison_chance
         self.summon_chance_low_hp = summon_chance_low_hp
         self.poison_damage_base = poison_damage_base
@@ -236,7 +235,8 @@ class Skeleton(Enemy):
     def __init__(self,
                  weapon: Weapon,
                  reward_coins: int = 150):
-        super().__init__(1, 20.0, reward_coins)
+        super().__init__(reward_coins)
+        self.max_enemy_damage = 10 * (1 + self.lvl / 10)
         self.weapon = weapon
 
     def before_turn(self,
@@ -318,10 +318,9 @@ class Revolver(RangedWeapon):
 class Medkit(Bonus):
 
     def __init__(self,
-                 position: tuple[int, int],
-                 power: int):
+                 position: tuple[int, int]):
         super().__init__(position)
-        self.power = power
+        self.power = randint(10, 40)
 
     def apply(self,
               player: Player) -> None:
@@ -332,9 +331,9 @@ class Rage(Bonus):
 
     def __init__(self,
                  position: tuple[int, int],
-                 multiplier: float):
+                 price: int = 50):
         super().__init__(position)
-        self.multiplier = float
+        self.multiplier = randint(1, 10) / 10
 
     def apply(self,
               player: Player) -> None:
@@ -343,10 +342,9 @@ class Rage(Bonus):
 class Arrows(Bonus):
     
     def __init__(self,
-                 position: tuple[int, int],
-                 amount: int):
+                 position: tuple[int, int]):
         super().__init__(position)
-        self.amount = amount
+        self.amount = randint(1, 20)
 
     def apply(self,
               player: Player) -> None:
@@ -355,10 +353,9 @@ class Arrows(Bonus):
 class Bullets(Bonus):
     
     def __init__(self,
-                 position: tuple[int, int],
-                 amount: int):
+                 position: tuple[int, int]):
         super().__init__(position)
-        self.amount = amount
+        self.amount = randint(1, 10)
 
     def apply(self,
               player: Player) -> None:
@@ -369,10 +366,9 @@ class Accuracy(Bonus):
 
     def __init__(self,
                  position: tuple[int, int],
-                 multiplier: float,
                  price: int = 50):
         super().__init__(position)
-        self.multiplier = multiplier
+        self.multiplier = randint(1, 10) / 10
         self.price = price
 
     def apply(self,
@@ -383,10 +379,9 @@ class Accuracy(Bonus):
 class Coins(Bonus):
     
     def __init__(self,
-                 position: tuple[int, int],
-                 amount: int):
+                 position: tuple[int, int]):
         super().__init__(position)
-        self.amount = amount
+        self.amount = randint(50, 100)
 
     def apply(self,
               player: Player) -> None:
