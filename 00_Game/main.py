@@ -487,7 +487,7 @@ def start(n: int,
                 bonuses = [Medkit((x, y)), Rage((x, y)), Arrows((x, y)), Bullets((x, y)), Accuracy((x, y)), Coins((x, y))]
                 cell = bonuses[randint(0, 5)]
             if cell == "E":
-                enemies = [Rat((x, y)), Spider((x, y)), ((x, y))]
+                enemies = [Rat((x, y)), Spider((x, y)), Skeleton((x, y))]
                 cell = enemies[randint(0, 2)]
             if cell == " ": cell = None
             grid[x][y] = (cell, False)
@@ -510,5 +510,5 @@ def main() -> None:
     pass
 
 
-start(3, 4, 1)
+start(5, 5, 1)
 
