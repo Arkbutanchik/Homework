@@ -3,7 +3,6 @@ from random import shuffle, randint
 from math import floor
 
 
-# Abstract classes
 
 class Entity(ABC):
 
@@ -126,7 +125,6 @@ class Enemy(Entity, Damageable, Attacker):
         return "E"
 
 
-# Specific classes
 
 class Player(Entity, Damageable, Attacker):
 
@@ -178,7 +176,6 @@ class Player(Entity, Damageable, Attacker):
         return "P"
 
 
-# Enemies
 
 class Rat(Enemy):
 
@@ -252,12 +249,11 @@ class Skeleton(Enemy):
         pass
 
 
-# Weapons
 
 class Fist(MeleeWeapon):
     
     def __init__(self, position: tuple[int, int], name: str = "Кулак", max_damage: float = 20):
-        super().__init__(position, name, max_damage)  # Fixed parameter order
+        super().__init__(position, name, max_damage)
 
     def damage(self, rage: float) -> float:
         pass
@@ -313,7 +309,6 @@ class Revolver(RangedWeapon):
         pass
 
 
-# Bonuses
 
 class Medkit(Bonus):
 
@@ -388,7 +383,6 @@ class Coins(Bonus):
         pass
 
 
-# Structures
 
 class Tower(Structure):
 
@@ -407,7 +401,6 @@ class Tower(Structure):
         return "T"
 
 
-# Board
 
 class Board:
 
@@ -457,7 +450,6 @@ class Board:
                         else: print("X")
         print("-" * (self.cols * 2 + 1))
 
-# Initialization
 
 def start(n: int,
           m: int,
