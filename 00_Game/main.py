@@ -71,6 +71,9 @@ class Weapon(Entity):
     def is_available(self) -> bool:
         pass
 
+    def symbol(self) -> str:
+        return "W"
+
 
 class MeleeWeapon(Weapon):
 
@@ -131,12 +134,12 @@ class Player(Entity, Damageable, Attacker):
     def __init__(self,
                  lvl: int,
                  weapon: Weapon,
-                 inventory: dict[str, int],
+                 inventory: dict[str, list[Bonus]],
                  status: dict[str, int],
                  rage: float = 1.0,
                  accuracy: float = 1.0):
         Entity.__init__(self, (0, 0))
-        Damageable.__init__(self, 0.0, 150 * (1 + lvl / 10))
+        Damageable.__init__(self, 150 * (1 + lvl / 10), 150 * (1 + lvl / 10))
         self.lvl = lvl
         self.weapon = weapon
         self.inventory = inventory
@@ -257,32 +260,36 @@ class Fist(MeleeWeapon):
 
     def damage(self, rage: float) -> float:
         pass
+    
+    def roll_damage(self):
+        return randint(0, self.max_damage)
 
 class Stick(MeleeWeapon):
     
     def __init__(self,
                  position: tuple[int, int],
-                 durability: int,
                  name: str = "Палка",
                  max_damage: float = 25):
         super().__init__(position, name, max_damage)
-        self.durability = durability
+        self.durability = randint(10, 20)
 
     def is_available(self) -> bool:
         pass
 
     def damage(self, rage: float) -> float:
         pass
+    
+    def roll_damage(self):
+        return randint(0, self.max_damage)
 
 
 class Bow(RangedWeapon):
 
     def __init__(self,
                  position: tuple[int, int],
-                 ammo: int,
                  name = "Лук",
                  max_damage: float = 35):
-        super().__init__(position, name, max_damage, ammo)
+        super().__init__(position, name, max_damage, randint(10, 15))
 
     def is_available(self) -> bool:
         pass
@@ -290,16 +297,18 @@ class Bow(RangedWeapon):
     def damage(self,
                accuracy: float) -> float:
         pass
+    
+    def roll_damage(self):
+        return randint(0, self.max_damage)
 
 
 class Revolver(RangedWeapon):
 
     def __init__(self,
                  position: tuple[int, int],
-                 ammo: int,
                  name = "Револьвер",
                  max_damage: float = 45):
-        super().__init__(position, name, max_damage, ammo)
+        super().__init__(position, name, max_damage, randint(5, 10))
 
     def is_available(self) -> bool:
         pass
@@ -307,6 +316,9 @@ class Revolver(RangedWeapon):
     def damage(self,
                accuracy: float) -> float:
         pass
+    
+    def roll_damage(self):
+        return randint(0, self.max_damage)
 
 
 
@@ -483,15 +495,22 @@ def start(n: int,
                 cell = enemies[randint(0, 2)]
             if cell == " ": cell = None
             grid[x][y] = (cell, False)
-        
-    print(grid_to_be_filled)
-    print(grid)
+    
     
     board = Board(
         rows = m, 
         cols = n,
-
+        grid = grid
     )
+    
+    player = Player(
+        lvl = player_lvl,
+        weapon = Fist((0, 0)),
+        inventory = {},
+        status = {}
+    )
+    
+    return (board, player)
 
 
 def game(board: Board,
