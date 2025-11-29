@@ -1,7 +1,8 @@
 from abc import ABC, abstractmethod
 from random import shuffle, randint
-from math import floor
-
+from math import floor, ceil
+import os
+from colorama import Fore, Style
 
 class Entity(ABC):
 
@@ -50,7 +51,7 @@ class Bonus(Entity):
         pass
 
     def symbol(self) -> str:
-        return "B"
+        return Fore.YELLOW+"B"+Style.RESET_ALL
 
 
 class Weapon(Entity):
@@ -71,7 +72,7 @@ class Weapon(Entity):
         pass
 
     def symbol(self) -> str:
-        return "W"
+        return Fore.BLUE+"W"+Style.RESET_ALL
 
 
 class MeleeWeapon(Weapon):
@@ -125,7 +126,7 @@ class Enemy(Entity, Damageable, Attacker):
         pass
 
     def symbol(self) -> str:
-        return "E"
+        return Fore.RED+"E"+Style.RESET_ALL
 
 
 
@@ -176,7 +177,7 @@ class Player(Entity, Damageable, Attacker):
         pass
 
     def symbol(self) -> str:
-        return "P"
+        return Fore.GREEN+"P"+Style.RESET_ALL
 
 
 
@@ -415,7 +416,7 @@ class Tower(Structure):
         pass
 
     def symbol(self) -> str:
-        return "T"
+        return Fore.MAGENTA+"T"+Style.RESET_ALL
 
 
 
@@ -469,16 +470,23 @@ class Board:
             print()
         print("-" * (self.cols * 2 + 1))
 
+def clear():
+    """Clears console output"""
+    
+    if os.name == 'nt':
+        os.system('cls')
+    else:
+        os.system('clear')
 
 def start(n: int,
           m: int,
           player_lvl: int) -> tuple[Board, Player]:
     
     available_cells = n*m-2
-    tower_cells = floor(n*m * 0.01)
-    weapon_cells = floor(n*m * 0.05)
-    bonus_cells = floor(n*m * 0.3)
-    enemy_cells = floor(n*m * 0.15)
+    tower_cells = round(n*m * 0.01)
+    weapon_cells = round(n*m * 0.05)
+    bonus_cells = round(n*m * 0.3)
+    enemy_cells = round(n*m * 0.15)
     empty_cells = available_cells - tower_cells - weapon_cells - bonus_cells - enemy_cells
     
     grid_to_be_filled = ["T"] * tower_cells + ["W"] * weapon_cells + ["B"] * bonus_cells + ["E"] * enemy_cells + [" "] * empty_cells
@@ -503,8 +511,10 @@ def start(n: int,
                 cell = enemies[randint(0, 2)]
             if cell == " ": 
                 cell = None
-            grid[x][y] = (cell, False)
+            grid[x][y] = (cell, True)
     
+    grid[0][0] = (None, True)
+    grid[m-1][n-1] = (None, True)
     
     board = Board(
         rows = m, 
@@ -524,8 +534,13 @@ def start(n: int,
 
 def game(board: Board,
          player: Player) -> None:
-    pass
+    board.render(player)
 
 def main() -> None:
     pass
 
+
+if __name__ == "__main__":
+    clear()
+    board, player = start(5, 5, 1)
+    game(board, player)
