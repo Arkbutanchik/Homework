@@ -132,20 +132,17 @@ class Enemy(Entity, Damageable, Attacker):
 class Player(Entity, Damageable, Attacker):
 
     def __init__(self,
-                 lvl: int,
-                 weapon: Weapon,
-                 inventory: dict[str, list[Bonus]],
-                 status: dict[str, int],
-                 rage: float = 1.0,
-                 accuracy: float = 1.0):
+                 lvl: int):
         Entity.__init__(self, (0, 0))
         Damageable.__init__(self, 150 * (1 + lvl / 10), 150 * (1 + lvl / 10))
         self.lvl = lvl
-        self.weapon = weapon
-        self.inventory = inventory
-        self.status = status
-        self.rage = rage
-        self.accuracy = accuracy
+        self.weapon = Fist((0, 0))
+        self.inventory = {}
+        self.coins = 0
+        self.rage = 1.0
+        self.accuracy = 1.0
+        self.status = {}
+        self.fight = False
         
     def move(self,
              d_row: int,
@@ -172,31 +169,28 @@ class Player(Entity, Damageable, Attacker):
         pass
 
     def buy_auto_if_needed(self,
-                           bonus_factory: callable[[str], Bonus]) -> None:
+                           bonus: str) -> Bonus:
         pass
 
     def symbol(self) -> str:
         return Fore.GREEN+"P"+Style.RESET_ALL
+    
+    def change_fight(self) -> None:
+        pass
 
 
 
 class Rat(Enemy):
 
     def __init__(self,
-                 position: tuple[int, int],
-                 infection_chance: float = 0.25,
-                 flee_chance_low_hp: float = 0.10,
-                 flee_treshold: float = 0.15,
-                 infection_damage_base: float = 5.0,
-                 infection_turns: int = 3,
-                 reward_coins: int = 200):
-        super().__init__(position, reward_coins)
+                 position: tuple[int, int]):
+        super().__init__(position, 200)
         self.max_enemy_damage = 15 * (1 + self.lvl / 10)
-        self.infection_chance = infection_chance
-        self.flee_chance_low_hp = flee_chance_low_hp
-        self.flee_treshold = flee_treshold
-        self.infection_damage_base = infection_damage_base
-        self.infection_turns = infection_turns
+        self.infection_chance = 0.25
+        self.flee_chance_low_hp = 0.10
+        self.flee_treshold = 0.15
+        self.infection_damage_base = 5.0
+        self.infection_turns = 3
 
     def before_turn(self,
                     player: Player) -> None:
@@ -210,18 +204,14 @@ class Rat(Enemy):
 class Spider(Enemy):
     
     def __init__(self,
-                 position: tuple[int, int],
-                 poison_chance: float = 0.10,
-                 summon_chance_low_hp: float = 0.10,
-                 poison_damage_base: float = 15.0,
-                 poison_turns: int = 2,
-                 reward_coins: int = 250):
-        super().__init__(position, reward_coins)
+                 position: tuple[int, int]):
+        super().__init__(position, 250)
         self.max_enemy_damage = 20 * (1 + self.lvl / 10)
-        self.poison_chance = poison_chance
-        self.summon_chance_low_hp = summon_chance_low_hp
-        self.poison_damage_base = poison_damage_base
-        self.poison_turns = poison_turns
+        self.poison_chance = 0.10
+        self.summon_chance_low_hp = 0.10
+        self.poison_damage_base = 15.0
+        self.call_treshold = 0.15
+        self.poison_turns = 2
 
     def before_turn(self,
                     player: Player) -> None:
@@ -236,9 +226,8 @@ class Skeleton(Enemy):
     
     def __init__(self,
                  position: tuple[int, int],
-                 weapon: Weapon,
-                 reward_coins: int = 150):
-        super().__init__(position, reward_coins)
+                 weapon: Weapon):
+        super().__init__(position, 150)
         self.max_enemy_damage = 10 * (1 + self.lvl / 10)
         self.weapon = weapon
 
@@ -259,10 +248,8 @@ class Skeleton(Enemy):
 class Fist(MeleeWeapon):
     
     def __init__(self, 
-                 position: tuple[int, int], 
-                 name: str = "Кулак", 
-                 max_damage: float = 20):
-        super().__init__(position, name, max_damage)
+                 position: tuple[int, int]):
+        super().__init__(position, "Кулак", 20)
 
     def damage(self, rage: float) -> float:
         pass
@@ -273,10 +260,8 @@ class Fist(MeleeWeapon):
 class Stick(MeleeWeapon):
     
     def __init__(self,
-                 position: tuple[int, int],
-                 name: str = "Палка",
-                 max_damage: float = 25):
-        super().__init__(position, name, max_damage)
+                 position: tuple[int, int]):
+        super().__init__(position, "Палка", 25)
         self.durability = randint(10, 20)
 
     def is_available(self) -> bool:
@@ -292,10 +277,8 @@ class Stick(MeleeWeapon):
 class Bow(RangedWeapon):
 
     def __init__(self,
-                 position: tuple[int, int],
-                 name: str = "Лук",
-                 max_damage: float = 35):
-        super().__init__(position, name, max_damage, randint(10, 15))
+                 position: tuple[int, int]):
+        super().__init__(position, "Лук", 35, randint(10, 15))
 
     def is_available(self) -> bool:
         pass
@@ -311,10 +294,8 @@ class Bow(RangedWeapon):
 class Revolver(RangedWeapon):
 
     def __init__(self,
-                 position: tuple[int, int],
-                 name: str = "Револьвер",
-                 max_damage: float = 45):
-        super().__init__(position, name, max_damage, randint(5, 10))
+                 position: tuple[int, int]):
+        super().__init__(position, "Револьвер", 45, randint(5, 10))
 
     def is_available(self) -> bool:
         pass
@@ -343,10 +324,10 @@ class Medkit(Bonus):
 class Rage(Bonus):
 
     def __init__(self,
-                 position: tuple[int, int],
-                 price: int = 50):
+                 position: tuple[int, int]):
         super().__init__(position)
         self.multiplier = randint(1, 10) / 10
+        self.price = 50
 
     def apply(self,
               player: Player) -> None:
@@ -378,11 +359,10 @@ class Bullets(Bonus):
 class Accuracy(Bonus):
 
     def __init__(self,
-                 position: tuple[int, int],
-                 price: int = 50):
+                 position: tuple[int, int]):
         super().__init__(position)
         self.multiplier = randint(1, 10) / 10
-        self.price = price
+        self.price = 50
 
     def apply(self,
               player: Player) -> None:
@@ -405,10 +385,9 @@ class Coins(Bonus):
 class Tower(Structure):
 
     def __init__(self,
-                 position: tuple[int, int],
-                 reveal_radius: int = 2):
+                 position: tuple[int, int]):
         super().__init__(position)
-        self.reveal_radius = reveal_radius
+        self.reveal_radius = 2
 
     def interact(self,
                  player: Player,
@@ -547,12 +526,7 @@ def start(n: int,
         grid = grid
     )
     
-    player = Player(
-        lvl = player_lvl,
-        weapon = Fist((0, 0)),
-        inventory = {},
-        status = {}
-    )
+    player = Player(lvl = player_lvl)
     
     return (board, player)
 
