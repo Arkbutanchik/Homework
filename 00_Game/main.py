@@ -3,7 +3,6 @@ from random import shuffle, randint
 from math import floor
 
 
-
 class Entity(ABC):
 
     def __init__(self,
@@ -47,7 +46,7 @@ class Bonus(Entity):
 
     @abstractmethod
     def apply(self,
-              player: Player) -> None:
+              player: 'Player') -> None:
         pass
 
     def symbol(self) -> str:
@@ -87,8 +86,8 @@ class RangedWeapon(Weapon):
     def __init__(self,
                  position: tuple[int, int],
                  name: str,
-                 max_damage:
-                     float, ammo: int):
+                 max_damage: float, 
+                 ammo: int):
         super().__init__(position, name, max_damage)
         self.ammo = ammo
 
@@ -103,22 +102,23 @@ class Structure(Entity):
 
     @abstractmethod
     def interact(self,
-                 player: Player) -> None:
+                 player: 'Player') -> None:
         pass
 
 
 class Enemy(Entity, Damageable, Attacker):
 
     def __init__(self,
+                 position: tuple[int, int],
                  reward_coins: int):
-        Entity.__init__(self, (0, 0))
+        Entity.__init__(self, position)
         Damageable.__init__(self, 0.0, 0.0)
         self.lvl = randint(1, 10)
         self.reward_coins = reward_coins
 
     @abstractmethod
     def before_turn(self,
-                    player: Player) -> None:
+                    player: 'Player') -> None:
         pass
 
     def roll_enemy_damage(self) -> float:
@@ -183,13 +183,14 @@ class Player(Entity, Damageable, Attacker):
 class Rat(Enemy):
 
     def __init__(self,
+                 position: tuple[int, int],
                  infection_chance: float = 0.25,
                  flee_chance_low_hp: float = 0.10,
                  flee_treshold: float = 0.15,
                  infection_damage_base: float = 5.0,
                  infection_turns: int = 3,
                  reward_coins: int = 200):
-        super().__init__(reward_coins)
+        super().__init__(position, reward_coins)
         self.max_enemy_damage = 15 * (1 + self.lvl / 10)
         self.infection_chance = infection_chance
         self.flee_chance_low_hp = flee_chance_low_hp
@@ -209,12 +210,13 @@ class Rat(Enemy):
 class Spider(Enemy):
     
     def __init__(self,
+                 position: tuple[int, int],
                  poison_chance: float = 0.10,
                  summon_chance_low_hp: float = 0.10,
                  poison_damage_base: float = 15.0,
                  poison_turns: int = 2,
                  reward_coins: int = 250):
-        super().__init__(reward_coins)
+        super().__init__(position, reward_coins)
         self.max_enemy_damage = 20 * (1 + self.lvl / 10)
         self.poison_chance = poison_chance
         self.summon_chance_low_hp = summon_chance_low_hp
@@ -233,9 +235,10 @@ class Spider(Enemy):
 class Skeleton(Enemy):
     
     def __init__(self,
+                 position: tuple[int, int],
                  weapon: Weapon,
                  reward_coins: int = 150):
-        super().__init__(reward_coins)
+        super().__init__(position, reward_coins)
         self.max_enemy_damage = 10 * (1 + self.lvl / 10)
         self.weapon = weapon
 
@@ -255,7 +258,10 @@ class Skeleton(Enemy):
 
 class Fist(MeleeWeapon):
     
-    def __init__(self, position: tuple[int, int], name: str = "Кулак", max_damage: float = 20):
+    def __init__(self, 
+                 position: tuple[int, int], 
+                 name: str = "Кулак", 
+                 max_damage: float = 20):
         super().__init__(position, name, max_damage)
 
     def damage(self, rage: float) -> float:
@@ -287,7 +293,7 @@ class Bow(RangedWeapon):
 
     def __init__(self,
                  position: tuple[int, int],
-                 name = "Лук",
+                 name: str = "Лук",
                  max_damage: float = 35):
         super().__init__(position, name, max_damage, randint(10, 15))
 
@@ -306,7 +312,7 @@ class Revolver(RangedWeapon):
 
     def __init__(self,
                  position: tuple[int, int],
-                 name = "Револьвер",
+                 name: str = "Револьвер",
                  max_damage: float = 45):
         super().__init__(position, name, max_damage, randint(5, 10))
 
@@ -327,7 +333,6 @@ class Medkit(Bonus):
     def __init__(self,
                  position: tuple[int, int]):
         super().__init__(position)
-        self.power = randint(10, 40)
 
     def apply(self,
               player: Player) -> None:
@@ -406,7 +411,7 @@ class Tower(Structure):
 
     def interact(self,
                  player: Player,
-                 board: Board):
+                 board: 'Board'):
         pass
 
     def symbol(self) -> str:
@@ -445,21 +450,23 @@ class Board:
             return True
         else: return False
 
-    def render(self,
-               player: Player):
+    def render(self, player: Player):
         print("-" * (self.cols * 2 + 1))
         for x in range(self.rows):
-            print("|", end = "")
+            print("|", end="")
             for y in range(self.cols):
+                entity, revealed = self.grid[x][y]
                 if player.position == (x, y):
-                    print(player.symbol)
+                    print(player.symbol() + "|", end="")
                 else:
-                    if self.grid[x][y][1]:
-                        if self.grid[x][y][1]:
-                            if self.grid[x][y][0] is None:
-                                print(" ")
-                            else: print(self.grid[x][y][0])
-                        else: print("X")
+                    if revealed:
+                        if entity is None:
+                            print(" |", end="")
+                        else:
+                            print(entity.symbol() + "|", end="")
+                    else:
+                        print("X|", end="")
+            print()
         print("-" * (self.cols * 2 + 1))
 
 
@@ -483,7 +490,8 @@ def start(n: int,
     for x in range(m):
         for y in range(n):
             cell = grid_to_be_filled[x*n+y]
-            if cell == "T": cell = Tower((x, y))
+            if cell == "T": 
+                cell = Tower((x, y))
             if cell == "W":
                 weapons = [Stick((x, y)), Bow((x, y)), Revolver((x, y))]
                 cell = weapons[randint(0, 2)]
@@ -491,9 +499,10 @@ def start(n: int,
                 bonuses = [Medkit((x, y)), Rage((x, y)), Arrows((x, y)), Bullets((x, y)), Accuracy((x, y)), Coins((x, y))]
                 cell = bonuses[randint(0, 5)]
             if cell == "E":
-                enemies = [Rat((x, y)), Spider((x, y)), Skeleton((x, y))]
+                enemies = [Rat((x, y)), Spider((x, y)), Skeleton((x, y), Fist((0, 0)))]
                 cell = enemies[randint(0, 2)]
-            if cell == " ": cell = None
+            if cell == " ": 
+                cell = None
             grid[x][y] = (cell, False)
     
     
@@ -519,7 +528,4 @@ def game(board: Board,
 
 def main() -> None:
     pass
-
-
-start(5, 5, 1)
 
