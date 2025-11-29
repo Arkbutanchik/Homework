@@ -1,6 +1,5 @@
 from abc import ABC, abstractmethod
 from random import shuffle, randint
-from math import floor, ceil
 import os
 from colorama import Fore, Style
 
@@ -334,6 +333,7 @@ class Medkit(Bonus):
     def __init__(self,
                  position: tuple[int, int]):
         super().__init__(position)
+        self.power = randint(10, 40)
 
     def apply(self,
               player: Player) -> None:
@@ -447,9 +447,7 @@ class Board:
 
     def in_bounds(self,
                   pos: tuple[int, int]) -> bool:
-        if 0 <= pos[0] <= (self.rows-1) and 0 <= pos[1] <= (self.cols-1):
-            return True
-        else: return False
+        return (0 <= pos[0] <= (self.rows-1) and 0 <= pos[1] <= (self.cols-1))
 
     def render(self, player: Player):
         print("-" * (self.cols * 2 + 1))
@@ -470,13 +468,40 @@ class Board:
             print()
         print("-" * (self.cols * 2 + 1))
 
+def startup() -> str:
+    """Shows startup screen"""
+    
+    logo = f"""
+{" "*((os.get_terminal_size().columns-135)//2)}\x1b[38;2;255;165;0m████████▄   ▄█     ▄████████\x1b[0m      \x1b[38;2;240;240;240m ▄██████▄     ▄████████\x1b[0m      \x1b[38;2;255;165;0m   ▄███████▄    ▄████████    ▄████████  ▄█     ▄████████    ▄█    █▄    \x1b[0m
+{" "*((os.get_terminal_size().columns-135)//2)}\x1b[38;2;255;140;0m███   ▀███ ███    ███    ███\x1b[0m      \x1b[38;2;220;220;220m███    ███   ███    ███\x1b[0m      \x1b[38;2;255;140;0m  ███    ███   ███    ███   ███    ███ ███    ███    ███   ███    ███   \x1b[0m
+{" "*((os.get_terminal_size().columns-135)//2)}\x1b[38;2;255;115;0m███    ███ ███▌   ███    █▀ \x1b[0m      \x1b[38;2;200;200;200m███    ███   ███    ███\x1b[0m      \x1b[38;2;255;115;0m  ███    ███   ███    █▀    ███    ███ ███▌   ███    █▀    ███    ███   \x1b[0m
+{" "*((os.get_terminal_size().columns-135)//2)}\x1b[38;2;255;90;0m███    ███ ███▌  ▄███▄▄▄    \x1b[0m      \x1b[38;2;180;180;180m███    ███  ▄███▄▄▄▄██▀\x1b[0m      \x1b[38;2;255;90;0m  ███    ███  ▄███▄▄▄      ▄███▄▄▄▄██▀ ███▌   ███         ▄███▄▄▄▄███▄▄ \x1b[0m
+{" "*((os.get_terminal_size().columns-135)//2)}\x1b[38;2;255;65;0m███    ███ ███▌ ▀▀███▀▀▀    \x1b[0m      \x1b[38;2;160;160;160m███    ███ ▀▀███▀▀▀▀▀  \x1b[0m      \x1b[38;2;255;65;0m▀█████████▀  ▀▀███▀▀▀     ▀▀███▀▀▀▀▀   ███▌ ▀███████████ ▀▀███▀▀▀▀███▀  \x1b[0m
+{" "*((os.get_terminal_size().columns-135)//2)}\x1b[38;2;255;40;0m███    ███ ███    ███    █▄ \x1b[0m      \x1b[38;2;140;140;140m███    ███ ▀███████████\x1b[0m      \x1b[38;2;255;40;0m  ███          ███    █▄  ▀███████████ ███           ███   ███    ███   \x1b[0m
+{" "*((os.get_terminal_size().columns-135)//2)}\x1b[38;2;255;15;0m███   ▄███ ███    ███    ███\x1b[0m      \x1b[38;2;120;120;120m███    ███   ███    ███\x1b[0m      \x1b[38;2;255;15;0m  ███          ███    ███   ███    ███ ███     ▄█    ███   ███    ███   \x1b[0m
+{" "*((os.get_terminal_size().columns-135)//2)}\x1b[38;2;200;0;0m████████▀  █▀     ██████████\x1b[0m      \x1b[38;2;100;100;100m ▀██████▀    ███    ███\x1b[0m      \x1b[38;2;200;0;0m ▄████▀        ██████████   ███    ███ █▀    ▄████████▀    ███    █▀    \x1b[0m
+{" "*((os.get_terminal_size().columns-135)//2)}\x1b[38;2;160;0;0m                            \x1b[0m       \x1b[38;2;80;80;80m            ███    ███ \x1b[0m      \x1b[38;2;160;0;0m                           ███    ███                                  \x1b[0m
+"""
+    print(logo)
+    print(os.get_terminal_size().columns * "-")
+    
+    difficulty = input(f"""\nChoose difficulty level:
+                       
+1. {Fore.GREEN}Easy{Style.RESET_ALL}
+2. {Fore.YELLOW}Normal{Style.RESET_ALL}
+3. {Fore.RED}Hard{Style.RESET_ALL}
+
+Difficulty: """).strip().lower()
+    
+    return difficulty
+
 def clear():
     """Clears console output"""
     
-    if os.name == 'nt':
-        os.system('cls')
+    if os.name == "nt":
+        os.system("cls")
     else:
-        os.system('clear')
+        os.system("clear")
 
 def start(n: int,
           m: int,
@@ -542,5 +567,28 @@ def main() -> None:
 
 if __name__ == "__main__":
     clear()
-    board, player = start(5, 5, 1)
+    
+    difficulty = startup()
+    print()
+    if difficulty in ("1", "easy"):
+        board_size = (randint(5, 7), randint(5, 7))
+        player_lvl = 1
+        print(f"Starting game on {Fore.GREEN}Easy{Style.RESET_ALL} difficulty.")
+    elif difficulty in ("2", "normal"):
+        board_size = (randint(8, 11), randint(8, 11))
+        player_lvl = 2
+        print(f"Starting game on {Fore.YELLOW}Normal{Style.RESET_ALL} difficulty.")
+    elif difficulty in ("3", "hard"):
+        board_size = (randint(12, 15), randint(12, 15))
+        player_lvl = 3
+        print(f"Starting game on {Fore.RED}Hard{Style.RESET_ALL} difficulty.")
+    else:
+        print(f"Invalid input, starting game on {Fore.YELLOW}Normal{Style.RESET_ALL} difficulty.")
+        board_size = (randint(8, 11), randint(8, 11))
+        player_lvl = 2
+    
+    input("\nPress Enter to start the game...")
+    clear()
+    
+    board, player = start(board_size[0], board_size[1], player_lvl)
     game(board, player)
