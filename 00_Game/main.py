@@ -137,17 +137,24 @@ class Player(Entity, Damageable, Attacker):
         Damageable.__init__(self, 150 * (1 + lvl / 10), 150 * (1 + lvl / 10))
         self.lvl = lvl
         self.weapon = Fist((0, 0))
-        self.inventory = {}
+        self.inventory = {
+            "Medkit": [],
+            "Rage": [],
+            "Accuracy": []
+        }
+        
         self.coins = 0
         self.rage = 1.0
         self.accuracy = 1.0
         self.status = {}
         self.fight = False
+        self.arrows = 0 # store arrows if bow is not equipped
+        self.bullets = 0 # store bullets if revolver is not equipped
         
     def move(self,
              d_row: int,
              d_col: int) -> None:
-        pass
+        self.position = (self.position[0] + d_row, self.position[1] + d_col)
 
     def attack(self,
                target: Damageable) -> float:
@@ -162,7 +169,8 @@ class Player(Entity, Damageable, Attacker):
 
     def add_coins(self,
                  amount: int) -> None:
-        pass
+        self.coins += amount
+        print(f"{Fore.YELLOW}{amount} coins{Style.RESET_ALL} added! You now have {Fore.YELLOW}{self.coins} coins{Style.RESET_ALL}.")
 
     def use_bonus(self,
                   bonus: Bonus) -> None:
@@ -178,6 +186,46 @@ class Player(Entity, Damageable, Attacker):
     def change_fight(self) -> None:
         pass
 
+    def add_to_inventory(self,
+                         bonus: Bonus) -> None:
+        """Adds bonus to inventory"""
+        
+        key = type(bonus).__name__
+        
+        if key in ("Medkit", "Rage", "Accuracy"):
+            self.inventory[key].append(bonus)
+            print(f"{Fore.YELLOW}{type(bonus).__name__}{Style.RESET_ALL} added to Inventory!")
+        
+        elif key == "Coins":
+            self.add_coins(bonus.amount)
+            
+        elif key == "Arrows":
+            if isinstance(self.weapon, Bow):
+                self.weapon.ammo += bonus.amount
+                print(f"{Fore.YELLOW}{bonus.amount} Arrows{Style.RESET_ALL} added to your {Fore.BLUE}Bow{Style.RESET_ALL}!")
+            else:
+                self.arrows += bonus.amount
+                print(f"{Fore.YELLOW}{bonus.amount} Arrows{Style.RESET_ALL} added to Inventory!")
+                
+        elif key == "Bullets":
+            if isinstance(self.weapon, Revolver):
+                self.weapon.ammo += bonus.amount
+                print(f"{Fore.YELLOW}{bonus.amount} Bullets{Style.RESET_ALL} added to your {Fore.BLUE}Revolver{Style.RESET_ALL}!")
+            else:
+                self.bullets += bonus.amount
+                print(f"{Fore.YELLOW}{bonus.amount} Bullets{Style.RESET_ALL} added to Inventory!")
+        
+    def show_inventory(self) -> None:
+        """Displays player's inventory"""
+        
+        print(f"\n{Fore.LIGHTGREEN_EX}--- Inventory ---{Style.RESET_ALL}")
+        print(f"Weapon: {Fore.BLUE}{self.weapon.name}{Style.RESET_ALL} (Max Damage: {self.weapon.max_damage})")
+        for key, items in self.inventory.items():
+            print(f"{Fore.YELLOW}{key}{Style.RESET_ALL}: {len(items)}")
+        print(f"{Fore.YELLOW}Coins{Style.RESET_ALL}: {self.coins}")
+        print(f"{Fore.YELLOW}Arrows{Style.RESET_ALL}: {self.arrows}")
+        print(f"{Fore.YELLOW}Bullets{Style.RESET_ALL}: {self.bullets}")
+        print(f"{Fore.LIGHTGREEN_EX}-----------------{Style.RESET_ALL}\n")
 
 
 class Rat(Enemy):
@@ -416,13 +464,16 @@ class Board:
         else: self.goal = goal
 
     def place(self,
-              entity: Entity,
+              entity: Entity | None,
               pos: tuple[int, int]) -> None:
-        self.grid[pos[0]][pos[1]] = entity
-
+        if isinstance(entity, Entity):
+            self.grid[pos[0]][pos[1]] = (entity, True)
+        else:
+            self.grid[pos[0]][pos[1]] = (None, True)
+         
     def entity_at(self,
                   pos: tuple[int, int]) -> Entity | None:
-        return self.grid[pos[0]][pos[1]]
+        return self.grid[pos[0]][pos[1]][0]
 
     def in_bounds(self,
                   pos: tuple[int, int]) -> bool:
@@ -477,6 +528,8 @@ Difficulty: """).strip().lower()
 def clear():
     """Clears console output"""
     
+    if DEBUG_DISABLE_CLEARS:
+        return
     if os.name == "nt":
         os.system("cls")
     else:
@@ -533,36 +586,100 @@ def start(n: int,
 
 def game(board: Board,
          player: Player) -> None:
-    board.render(player)
+    while True:
+        clear()
+        board.render(player)
+        player_input = input("""
+Enter your move:
+1. W (up)
+2. A (left)
+3. S (down)
+4. D (right)
+5. E (inventory)
+Move: """).strip().lower()
+        if player_input in ("w", "a", "s", "d"):
+            if player_input == "w" and board.in_bounds((player.position[0]-1, player.position[1])):
+                d_row, d_col = -1, 0
+            elif player_input == "a" and board.in_bounds((player.position[0], player.position[1]-1)):
+                d_row, d_col = 0, -1
+            elif player_input == "s" and board.in_bounds((player.position[0]+1, player.position[1])):
+                d_row, d_col = 1, 0
+            elif player_input == "d" and board.in_bounds((player.position[0], player.position[1]+1)):
+                d_row, d_col = 0, 1
+            else: 
+                input("Move out of bounds. Press Enter to change direction...")
+                continue
+            player.move(d_row, d_col)
+        elif player_input == "e":
+            clear()
+            board.render(player)
+            player.show_inventory()
+            input("Press Enter to continue...")
+            continue
+        else:
+            input("Invalid input. Press Enter to move...")
+            continue
+        
+        clear()
+        board.render(player)
+        
+        entity = board.entity_at(player.position)
+        if entity is not None:
+            
+            if isinstance(entity, Structure):
+                print(f"\nYou have encountered a {Fore.MAGENTA}{type(entity).__name__}{Style.RESET_ALL}!")
+                
+            elif isinstance(entity, Bonus):
+                print(f"\nYou have found a bonus: {Fore.YELLOW}{type(entity).__name__}{Style.RESET_ALL}!")
+                player.add_to_inventory(entity)
+                board.place(None, player.position)
+                
+            elif isinstance(entity, Weapon):
+                print(f"\nYou have found a {Fore.BLUE}{type(entity).__name__}{Style.RESET_ALL}!")
+                
+            elif isinstance(entity, Enemy):
+                print(f"\nYou have encountered an {Fore.RED}{type(entity).__name__}{Style.RESET_ALL}!")
+            
+        input("\nPress Enter to continue...")
+        
+        if player.position == board.goal:
+            clear()
+            board.render(player)
+            print(f"{Fore.CYAN}You Won!{Style.RESET_ALL}")
+            break
 
-def main() -> None:
-    pass
 
+DEBUG_SKIP_INTRO = True # skips intro and starts game directly
+DEBUG_DISABLE_CLEARS = False # disables console clears
 
 if __name__ == "__main__":
     clear()
     
-    difficulty = startup()
-    print()
-    if difficulty in ("1", "easy"):
-        board_size = (randint(5, 7), randint(5, 7))
-        player_lvl = 1
-        print(f"Starting game on {Fore.GREEN}Easy{Style.RESET_ALL} difficulty.")
-    elif difficulty in ("2", "normal"):
-        board_size = (randint(8, 11), randint(8, 11))
-        player_lvl = 2
-        print(f"Starting game on {Fore.YELLOW}Normal{Style.RESET_ALL} difficulty.")
-    elif difficulty in ("3", "hard"):
-        board_size = (randint(12, 15), randint(12, 15))
-        player_lvl = 3
-        print(f"Starting game on {Fore.RED}Hard{Style.RESET_ALL} difficulty.")
+    if DEBUG_SKIP_INTRO:
+        board, player = start(6, 6, 1)
+        game(board, player)
     else:
-        print(f"Invalid input, starting game on {Fore.YELLOW}Normal{Style.RESET_ALL} difficulty.")
-        board_size = (randint(8, 11), randint(8, 11))
-        player_lvl = 2
-    
-    input("\nPress Enter to start the game...")
-    clear()
-    
-    board, player = start(board_size[0], board_size[1], player_lvl)
-    game(board, player)
+        difficulty = startup()
+        print()
+        if difficulty in ("1", "easy"):
+            board_size = (randint(5, 7), randint(5, 7))
+            player_lvl = 1
+            print(f"Starting game on {Fore.GREEN}Easy{Style.RESET_ALL} difficulty.")
+        elif difficulty in ("2", "normal"):
+            board_size = (randint(8, 11), randint(8, 11))
+            player_lvl = 2
+            print(f"Starting game on {Fore.YELLOW}Normal{Style.RESET_ALL} difficulty.")
+        elif difficulty in ("3", "hard"):
+            board_size = (randint(12, 15), randint(12, 15))
+            player_lvl = 3
+            print(f"Starting game on {Fore.RED}Hard{Style.RESET_ALL} difficulty.")
+        else:
+            print(f"Invalid input, starting game on {Fore.YELLOW}Normal{Style.RESET_ALL} difficulty.")
+            board_size = (randint(8, 11), randint(8, 11))
+            player_lvl = 2
+
+        input("\nPress Enter to start the game...")
+        clear()
+
+        board, player = start(board_size[0], board_size[1], player_lvl)
+        game(board, player)
