@@ -153,8 +153,10 @@ class Player(Entity, Damageable, Attacker):
         
     def move(self,
              d_row: int,
-             d_col: int) -> None:
+             d_col: int,
+             board: Board) -> None:
         self.position = (self.position[0] + d_row, self.position[1] + d_col)
+        board.reveal(self.position)
 
     def attack(self,
                target: Damageable) -> float:
@@ -474,6 +476,11 @@ class Board:
     def entity_at(self,
                   pos: tuple[int, int]) -> Entity | None:
         return self.grid[pos[0]][pos[1]][0]
+    
+    def reveal(self,
+               pos: tuple[int, int]) -> None:
+        """Reveals cell at position"""
+        self.grid[pos[0]][pos[1]] = (self.grid[pos[0]][pos[1]][0], True)
 
     def in_bounds(self,
                   pos: tuple[int, int]) -> bool:
@@ -488,7 +495,7 @@ class Board:
                 if player.position == (x, y):
                     print(player.symbol() + "|", end="")
                 else:
-                    if revealed:
+                    if revealed or DEBUG_SHOW_UNOPENED_CELLS:
                         if entity is None:
                             print(" |", end="")
                         else:
@@ -568,7 +575,7 @@ def start(n: int,
                 cell = enemies[randint(0, 2)]
             if cell == " ": 
                 cell = None
-            grid[x][y] = (cell, True)
+            grid[x][y] = (cell, False)
     
     grid[0][0] = (None, True)
     grid[m-1][n-1] = (None, True)
@@ -609,7 +616,7 @@ Move: """).strip().lower()
             else: 
                 input("Move out of bounds. Press Enter to change direction...")
                 continue
-            player.move(d_row, d_col)
+            player.move(d_row, d_col, board)
         elif player_input == "e":
             clear()
             board.render(player)
@@ -624,7 +631,7 @@ Move: """).strip().lower()
         board.render(player)
         
         entity = board.entity_at(player.position)
-        if entity is not None:
+        if entity is not None and not DEBUG_DISABLE_INTERACTIONS:
             
             if isinstance(entity, Structure):
                 print(f"\nYou have encountered a {Fore.MAGENTA}{type(entity).__name__}{Style.RESET_ALL}!")
@@ -636,6 +643,10 @@ Move: """).strip().lower()
                 
             elif isinstance(entity, Weapon):
                 print(f"\nYou have found a {Fore.BLUE}{type(entity).__name__}{Style.RESET_ALL}!")
+                weapon_choice = input(f"Would you like to swap your {Fore.BLUE}{type(player.weapon).__name__}{Style.RESET_ALL} for a {Fore.BLUE}{type(entity).__name__}{Style.RESET_ALL}? (y/n): ")
+                if weapon_choice.strip().lower() == "y":
+                    player.choose_weapon(entity)
+                    board.place(None, player.position)
                 
             elif isinstance(entity, Enemy):
                 print(f"\nYou have encountered an {Fore.RED}{type(entity).__name__}{Style.RESET_ALL}!")
@@ -645,12 +656,14 @@ Move: """).strip().lower()
         if player.position == board.goal:
             clear()
             board.render(player)
-            print(f"{Fore.CYAN}You Won!{Style.RESET_ALL}")
+            print(f"\n{Fore.CYAN}You Won!{Style.RESET_ALL}")
             break
 
 
 DEBUG_SKIP_INTRO = True # skips intro and starts game directly
 DEBUG_DISABLE_CLEARS = False # disables console clears
+DEBUG_SHOW_UNOPENED_CELLS = True # shows all cells as revealed
+DEBUG_DISABLE_INTERACTIONS = True # disables interactions with cells
 
 if __name__ == "__main__":
     clear()
