@@ -1,6 +1,7 @@
 from abc import ABC, abstractmethod
 from random import shuffle, randint
 import os
+import argparse
 from colorama import Fore, Style
 
 class Entity(ABC):
@@ -659,11 +660,17 @@ Move: """).strip().lower()
             print(f"\n{Fore.CYAN}You Won!{Style.RESET_ALL}")
             break
 
+parser = argparse.ArgumentParser()
+parser.add_argument("-i", "--skip-intro", action = "store_true")
+parser.add_argument("-c", "--disable-clears", action = "store_true")
+parser.add_argument("-s", "--show-unopened-cells", action = "store_true")
+parser.add_argument("-d", "--disable-interactions", action = "store_true")
+args = parser.parse_args()
 
-DEBUG_SKIP_INTRO = True # skips intro and starts game directly
-DEBUG_DISABLE_CLEARS = False # disables console clears
-DEBUG_SHOW_UNOPENED_CELLS = True # shows all cells as revealed
-DEBUG_DISABLE_INTERACTIONS = True # disables interactions with cells
+DEBUG_SKIP_INTRO = args.skip_intro # skips intro and starts game directly
+DEBUG_DISABLE_CLEARS = args.disable_clears # disables console clears
+DEBUG_SHOW_UNOPENED_CELLS = args.show_unopened_cells # shows all cells as revealed
+DEBUG_DISABLE_INTERACTIONS = args.disable_interactions # disables interactions with cells
 
 if __name__ == "__main__":
     clear()
