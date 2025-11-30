@@ -165,7 +165,8 @@ class Player(Entity, Damageable, Attacker):
 
     def choose_weapon(self,
                       new_weapon: Weapon) -> None:
-        pass
+        self.weapon = new_weapon
+        print(f"You have equipped a {Fore.BLUE}{type(new_weapon).__name__}{Style.RESET_ALL}!")
 
     def apply_status_tick(self) -> float:
         pass
