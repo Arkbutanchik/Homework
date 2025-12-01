@@ -142,11 +142,14 @@ class Enemy(Entity, Damageable, Attacker):
 
     def __init__(self,
                  position: tuple[int, int],
-                 reward_coins: int):
+                 reward_coins: int,
+                 max_enemy_damage: float,
+                 lvl: int):
         Entity.__init__(self, position)
-        Damageable.__init__(self, 0.0, 0.0)
-        self.lvl = randint(1, 10)
+        Damageable.__init__(self, round(100 * (1 + lvl / 10), 1), round(100 * (1 + lvl / 10), 1))
+        self.lvl = lvl
         self.reward_coins = reward_coins
+        self.max_enemy_damage = int(max_enemy_damage)
 
     @abstractmethod
     def before_turn(self,
@@ -154,7 +157,7 @@ class Enemy(Entity, Damageable, Attacker):
         pass
 
     def roll_enemy_damage(self) -> float:
-        pass
+        return randint(0, self.max_enemy_damage)
 
     def symbol(self) -> str:
         return Fore.RED+"E"+Style.RESET_ALL
@@ -192,15 +195,31 @@ class Player(Entity, Damageable, Attacker):
 
     def attack(self,
                target: Damageable) -> float:
-        pass
-
+        if player.weapon.is_available():
+            if isinstance(self.weapon, MeleeWeapon):
+                damage_dealt = self.weapon.damage(self.rage)
+            else:
+                damage_dealt = self.weapon.damage(self.accuracy)
+                self.weapon.consume_ammo()
+            actual_damage = target.take_damage(damage_dealt)
+            return actual_damage
+            
     def choose_weapon(self,
                       new_weapon: Weapon) -> None:
         self.weapon = new_weapon
         print(f"You have equipped a {Fore.BLUE}{type(new_weapon).__name__}{Style.RESET_ALL}!")
 
     def apply_status_tick(self) -> float:
-        pass
+        for i in list(self.status.keys()):
+            damage = self.status[i]["damage_per_turn"]
+            self.take_damage(damage)
+            self.status[i]["turns_left"] -= 1
+            if i == "infection":
+                print(f"{Fore.RED}Infection{Style.RESET_ALL} deals {Fore.RED}{damage} damage{Style.RESET_ALL} to you!")
+            elif i == "poison":
+                print(f"{Fore.RED}Poison{Style.RESET_ALL} deals {Fore.RED}{damage} damage{Style.RESET_ALL} to you!")
+            if self.status[i]["turns_left"] <= 0:
+                del self.status[i]
 
     def add_coins(self,
                  amount: int) -> None:
@@ -219,7 +238,8 @@ class Player(Entity, Damageable, Attacker):
         return Fore.GREEN+"P"+Style.RESET_ALL
     
     def change_fight(self) -> None:
-        if self.fight: self.fight = False
+        if self.fight:
+            self.fight = False
         else: self.fight = True
 
     def add_to_inventory(self,
@@ -233,7 +253,7 @@ class Player(Entity, Damageable, Attacker):
             print(f"{Fore.YELLOW}{type(bonus).__name__}{Style.RESET_ALL} added to Inventory!")
         
         elif key == "Coins":
-            bonus.apply()
+            bonus.apply(self)
             
         elif key == "Arrows":
             if isinstance(self.weapon, Bow):
@@ -268,8 +288,8 @@ class Rat(Enemy):
 
     def __init__(self,
                  position: tuple[int, int]):
-        super().__init__(position, 200)
-        self.max_enemy_damage = 15 * (1 + self.lvl / 10)
+        lvl = randint(1, 10)
+        super().__init__(position, 200, 15 * (1 + lvl / 10), lvl)
         self.infection_chance = 0.25
         self.flee_chance_low_hp = 0.10
         self.flee_treshold = 0.15
@@ -278,19 +298,34 @@ class Rat(Enemy):
 
     def before_turn(self,
                     player: Player) -> None:
-        pass
+        if self.hp / self.max_hp < self.flee_treshold:
+            chance = randint(1, 100) / 100
+            if chance <= self.flee_chance_low_hp:
+                print(f"{Fore.RED}Rat{Style.RESET_ALL} fleed!")
+                self.hp = 0
+        
+        infection_chance_roll = randint(1, 100) / 100
+        if infection_chance_roll <= self.infection_chance:
+            if "infection" not in player.status:
+                player.status["infection"] = {
+                    "turns_left": self.infection_turns,
+                    "damage_per_turn": self.infection_damage_base * (1 + self.lvl / 10)
+                }
+                print(f"{Fore.RED}Rat{Style.RESET_ALL} has infected you for {self.infection_turns} turns!")
 
     def attack(self,
                target: Damageable) -> float:
-        pass
+        damage = self.roll_enemy_damage()
+        actual_damage = target.take_damage(damage)
+        return actual_damage
 
 
 class Spider(Enemy):
     
     def __init__(self,
                  position: tuple[int, int]):
-        super().__init__(position, 250)
-        self.max_enemy_damage = 20 * (1 + self.lvl / 10)
+        lvl = randint(1, 10)
+        super().__init__(position, 250, 20 * (1 + lvl / 10), lvl)
         self.poison_chance = 0.10
         self.summon_chance_low_hp = 0.10
         self.poison_damage_base = 15.0
@@ -299,11 +334,27 @@ class Spider(Enemy):
 
     def before_turn(self,
                     player: Player) -> None:
-        pass
+        if self.hp / self.max_hp < self.call_treshold:
+            chance = randint(1, 100) / 100
+            if chance <= self.summon_chance_low_hp:
+                print(f"{Fore.RED}Spider{Style.RESET_ALL} has summoned a new {Fore.RED}Spider{Style.RESET_ALL}!")
+                # TODO ЗЛОЕ
+                
+        poison_chance_roll = randint(1, 100) / 100
+        if poison_chance_roll <= self.poison_chance:
+            if "poison" not in player.status:
+                player.status["poison"] = {
+                    "turns_left": self.poison_turns,
+                    "damage_per_turn": self.poison_damage_base * (1 + self.lvl / 10)
+                }
+                print(f"{Fore.RED}Spider{Style.RESET_ALL} has poisoned you for {self.poison_turns} turns!")
+        
 
     def attack(self,
                target: Damageable) -> float:
-        pass
+        damage = self.roll_enemy_damage()
+        actual_damage = target.take_damage(damage)
+        return actual_damage
 
 
 class Skeleton(Enemy):
@@ -311,8 +362,8 @@ class Skeleton(Enemy):
     def __init__(self,
                  position: tuple[int, int],
                  weapon: Weapon):
-        super().__init__(position, 150)
-        self.max_enemy_damage = 10 * (1 + self.lvl / 10)
+        lvl = randint(1, 10)
+        super().__init__(position, 150, 10 * (1 + lvl / 10), lvl)
         self.weapon = weapon
 
     def before_turn(self,
@@ -321,7 +372,9 @@ class Skeleton(Enemy):
 
     def attack(self,
                target: Damageable) -> float:
-        pass
+        damage = self.roll_enemy_damage()
+        actual_damage = target.take_damage(damage)
+        return actual_damage
 
     def drop_loot(self,
                   player: Player) -> Weapon | None:
@@ -334,12 +387,6 @@ class Fist(MeleeWeapon):
     def __init__(self, 
                  position: tuple[int, int]):
         super().__init__(position, "Кулак", 20)
-
-    def damage(self, rage: float) -> float:
-        pass
-    
-    def roll_damage(self):
-        return randint(0, self.max_damage)
     
     def is_available(self):
         return True
@@ -350,15 +397,6 @@ class Stick(MeleeWeapon):
                  position: tuple[int, int]):
         super().__init__(position, "Палка", 25)
         self.durability = randint(10, 20)
-
-    def is_available(self) -> bool:
-        pass
-
-    def damage(self, rage: float) -> float:
-        pass
-    
-    def roll_damage(self):
-        return randint(0, self.max_damage)
     
     def is_available(self):
         return self.durability > 0
@@ -370,32 +408,12 @@ class Bow(RangedWeapon):
                  position: tuple[int, int]):
         super().__init__(position, "Лук", 35, randint(10, 15))
 
-    def is_available(self) -> bool:
-        pass
-
-    def damage(self,
-               accuracy: float) -> float:
-        pass
-    
-    def roll_damage(self):
-        return randint(0, self.max_damage)
-
 
 class Revolver(RangedWeapon):
 
     def __init__(self,
                  position: tuple[int, int]):
         super().__init__(position, "Револьвер", 45, randint(5, 10))
-
-    def is_available(self) -> bool:
-        pass
-
-    def damage(self,
-               accuracy: float) -> float:
-        pass
-    
-    def roll_damage(self):
-        return randint(0, self.max_damage)
 
 
 
@@ -408,7 +426,8 @@ class Medkit(Bonus):
 
     def apply(self,
               player: Player) -> None:
-        pass
+        healed_amount = player.heal(self.power)
+        print(f"{Fore.GREEN}{healed_amount} HP{Style.RESET_ALL} restored!")
 
 
 class Rage(Bonus):
@@ -421,7 +440,8 @@ class Rage(Bonus):
 
     def apply(self,
               player: Player) -> None:
-        pass
+        player.rage += self.multiplier
+        print(f"{Fore.YELLOW}Rage{Style.RESET_ALL} increased to {player.rage}!")
 
 class Arrows(Bonus):
     
@@ -456,7 +476,8 @@ class Accuracy(Bonus):
 
     def apply(self,
               player: Player) -> None:
-        pass
+        player.accuracy += self.multiplier
+        print(f"{Fore.YELLOW}Accuracy{Style.RESET_ALL} increased to {player.accuracy}!")
 
 
 class Coins(Bonus):
@@ -547,19 +568,39 @@ class Board:
             print()
         print("-" * (self.cols * 2 + 1))
 
+
 def fight(player: Player,
-          enemy: Enemy):
+          enemy: Enemy,
+          board: Board):
     """Fighting scene"""
 
-    print(f"\n{Fore.LIGHTRED_EX}Fight Started{Style.RESET_ALL}\n")
+    print(f"\n{Fore.GREEN}Player{Style.RESET_ALL} HP: {Fore.GREEN}{player.hp}/{player.max_hp}{Style.RESET_ALL}")
+    print(f"{Fore.RED}{type(enemy).__name__}{Style.RESET_ALL} HP: {Fore.RED}{enemy.hp}/{enemy.max_hp}{Style.RESET_ALL}")
     
     while player.is_alive() and enemy.is_alive():
         enemy.before_turn(player)
-        player_choice = input(f"""Choose your action:
+        player_choice = input("""\nChoose your action:
 1. Attack
-2. Use Bonus3\
+2. Use Bonus
 Action: """).strip().lower()
-    
+        if player_choice == "1":
+            damage_dealt = player.attack(enemy)
+            print(f"\nYou dealt {Fore.GREEN}{damage_dealt} damage{Style.RESET_ALL} to the {Fore.RED}{type(enemy).__name__}{Style.RESET_ALL}!")
+            if enemy.is_alive():
+                print(f"{Fore.GREEN}Player{Style.RESET_ALL} HP: {Fore.GREEN}{player.hp}/{player.max_hp}{Style.RESET_ALL}")
+                print(f"{Fore.RED}{type(enemy).__name__}{Style.RESET_ALL} HP: {Fore.RED}{enemy.hp}/{enemy.max_hp}{Style.RESET_ALL}")
+            else:
+                print(f"\n{Fore.GREEN}{type(enemy).__name__} defeated!{Style.RESET_ALL}")
+                board.place(None, player.position)
+            damage_dealt = enemy.attack(player)
+            print(f"\nThe {Fore.RED}{type(enemy).__name__}{Style.RESET_ALL} dealt {Fore.RED}{damage_dealt} damage{Style.RESET_ALL} to you!")
+            if player.is_alive():
+                print(f"{Fore.GREEN}Player{Style.RESET_ALL} HP: {Fore.GREEN}{player.hp}/{player.max_hp}{Style.RESET_ALL}")
+                print(f"{Fore.RED}{type(enemy).__name__}{Style.RESET_ALL} HP: {Fore.RED}{enemy.hp}/{enemy.max_hp}{Style.RESET_ALL}")
+            else:
+                print(f"\n{Fore.RED}You died!{Style.RESET_ALL}")
+                exit()
+        player.apply_status_tick()
     
 
 
@@ -706,13 +747,16 @@ Move: """).strip().lower()
                 new_ammo_str = f" (Ammo: {entity.ammo})" if type(entity).__name__ in ("Bow", "Revolver") else ""
                 weapon_choice = input(f"\nWould you like to swap your {Fore.BLUE}{type(player.weapon).__name__}{Style.RESET_ALL}{player_ammo_str} for a {Fore.BLUE}{type(entity).__name__}{Style.RESET_ALL}{new_ammo_str}? (y/n): ")
                 if weapon_choice.strip().lower() == "y":
+                    if type(player.weapon).__name__ != "Fist":
+                        board.place(player.weapon, player.position)
+                    else:
+                        board.place(None, player.position)
                     player.choose_weapon(entity)
-                    board.place(None, player.position)
                 
             elif isinstance(entity, Enemy):
-                print(f"\nYou have encountered an {Fore.RED}{type(entity).__name__}{Style.RESET_ALL}!")
+                print(f"\nYou have encountered a {Fore.RED}{type(entity).__name__} {entity.lvl} lvl.{Style.RESET_ALL}!")
                 player.change_fight()
-                fight(player, entity)
+                fight(player, entity, board)
                 player.change_fight()
             
         input("\nPress Enter to continue...")
@@ -737,33 +781,36 @@ DEBUG_SHOW_UNOPENED_CELLS = args.show_unopened_cells # shows all cells as reveal
 DEBUG_DISABLE_INTERACTIONS = args.disable_interactions # disables interactions with cells
 
 if __name__ == "__main__":
-    clear()
-    
-    if DEBUG_SKIP_INTRO:
-        board, player = start(6, 6, 1)
-        game(board, player)
-    else:
-        difficulty = startup()
-        print()
-        if difficulty in ("1", "easy"):
-            board_size = (randint(5, 7), randint(5, 7))
-            player_lvl = 1
-            print(f"Starting game on {Fore.GREEN}Easy{Style.RESET_ALL} difficulty.")
-        elif difficulty in ("2", "normal"):
-            board_size = (randint(8, 11), randint(8, 11))
-            player_lvl = 2
-            print(f"Starting game on {Fore.YELLOW}Normal{Style.RESET_ALL} difficulty.")
-        elif difficulty in ("3", "hard"):
-            board_size = (randint(12, 15), randint(12, 15))
-            player_lvl = 3
-            print(f"Starting game on {Fore.RED}Hard{Style.RESET_ALL} difficulty.")
-        else:
-            print(f"Invalid input, starting game on {Fore.YELLOW}Normal{Style.RESET_ALL} difficulty.")
-            board_size = (randint(8, 11), randint(8, 11))
-            player_lvl = 2
-
-        input("\nPress Enter to start the game...")
+    try:
         clear()
+        
+        if DEBUG_SKIP_INTRO:
+            board, player = start(6, 6, 1)
+            game(board, player)
+        else:
+            difficulty = startup()
+            print()
+            if difficulty in ("1", "easy"):
+                board_size = (randint(5, 7), randint(5, 7))
+                player_lvl = 1
+                print(f"Starting game on {Fore.GREEN}Easy{Style.RESET_ALL} difficulty.")
+            elif difficulty in ("2", "normal"):
+                board_size = (randint(8, 11), randint(8, 11))
+                player_lvl = 2
+                print(f"Starting game on {Fore.YELLOW}Normal{Style.RESET_ALL} difficulty.")
+            elif difficulty in ("3", "hard"):
+                board_size = (randint(12, 15), randint(12, 15))
+                player_lvl = 3
+                print(f"Starting game on {Fore.RED}Hard{Style.RESET_ALL} difficulty.")
+            else:
+                print(f"Invalid input, starting game on {Fore.YELLOW}Normal{Style.RESET_ALL} difficulty.")
+                board_size = (randint(8, 11), randint(8, 11))
+                player_lvl = 2
 
-        board, player = start(board_size[0], board_size[1], player_lvl)
-        game(board, player)
+            input("\nPress Enter to start the game...")
+            clear()
+
+            board, player = start(board_size[0], board_size[1], player_lvl)
+            game(board, player)
+    except KeyboardInterrupt:
+        print(f"\n\n{Fore.CYAN}Game exited.{Style.RESET_ALL}")

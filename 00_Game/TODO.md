@@ -1,42 +1,42 @@
 - [x] Damageable.is_alive
 - [x] Damageable.heal
 - [x] Damageable.take_damage
-- [ ] Attacker.attack
+- [x] Attacker.attack
 - [ ] Bonus.apply
 - [x] Weapon.roll_damage
 - [x] Weapon.is_available
 - [x] MeleeWeapon.damage
-- [ ] RangedWeapon.consume_ammo
+- [x] RangedWeapon.consume_ammo
 - [x] RangedWeapon.damage
 - [x] Structure.interact
-- [ ] Enemy.before_turn
-- [ ] Enemy.roll_enemy_damage
-- [ ] Player.attack
-- [ ] Player.apply_status_tick
+- [x] Enemy.before_turn
+- [x] Enemy.roll_enemy_damage
+- [x] Player.attack
+- [x] Player.apply_status_tick
 - [ ] Player.use_bonus
 - [ ] Player.buy_auto_if_needed
-- [ ] Player.change_fight
-- [ ] Rat.before_turn
-- [ ] Rat.attack
+- [x] Player.change_fight
+- [x] Rat.before_turn
+- [x] Rat.attack
 - [ ] Spider.before_turn
-- [ ] Spider.attack
-- [ ] Skeleton.before_turn
-- [ ] Skeleton.attack
+- [x] Spider.attack
+- [x] Skeleton.before_turn
+- [x] Skeleton.attack
 - [ ] Skeleton.drop_loot
-- [ ] Fist.damage
-- [ ] Fist.roll_damage
-- [ ] Stick.is_available
-- [ ] Stick.damage
-- [ ] Stick.roll_damage
-- [ ] Bow.is_available
-- [ ] Bow.damage
-- [ ] Bow.roll_damage
-- [ ] Revolver.is_available
-- [ ] Revolver.damage
-- [ ] Revolver.roll_damage
-- [ ] Medkit.apply
-- [ ] Rage.apply
+- [x] Fist.damage
+- [x] Fist.roll_damage
+- [x] Stick.is_available
+- [x] Stick.damage
+- [x] Stick.roll_damage
+- [x] Bow.is_available
+- [x] Bow.damage
+- [x] Bow.roll_damage
+- [x] Revolver.is_available
+- [x] Revolver.damage
+- [x] Revolver.roll_damage
+- [x] Medkit.apply
+- [x] Rage.apply
 - [ ] Arrows.apply
 - [ ] Bullets.apply
-- [ ] Accuracy.apply
-- [ ] Coins.apply
+- [x] Accuracy.apply
+- [x] Coins.apply
