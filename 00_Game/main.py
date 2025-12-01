@@ -24,15 +24,31 @@ class Damageable(ABC):
         self.max_hp = max_hp
 
     def is_alive(self) -> bool:
-        pass
+        return self.hp > 0
 
     def heal(self,
              amount: float) -> float:
-        pass
+        healed_amount = amount
+        
+        if self.hp + amount > self.max_hp:
+            healed_amount = self.max_hp - self.hp
+            self.hp = self.max_hp
+        else:
+            self.hp += amount
+
+        return healed_amount
 
     def take_damage(self,
                     amount: float) -> float:
-        pass
+        damage_amount = amount
+        
+        if self.hp - amount < 0:
+            damage_amount = self.hp
+            self.hp = 0
+        else:
+            self.hp -= amount
+
+        return damage_amount
 
 
 class Attacker(ABC):
@@ -68,6 +84,7 @@ class Weapon(Entity):
     def roll_damage(self) -> float:
         pass
 
+    @abstractmethod
     def is_available(self) -> bool:
         pass
 
@@ -77,9 +94,12 @@ class Weapon(Entity):
 
 class MeleeWeapon(Weapon):
 
+    def roll_damage(self):
+        return randint(0, self.max_damage)
+
     def damage(self,
                rage: float) -> float:
-        pass
+        return self.roll_damage() * rage
 
 
 class RangedWeapon(Weapon):
@@ -93,10 +113,21 @@ class RangedWeapon(Weapon):
         self.ammo = ammo
 
     def consume_ammo(self, n: int = 1) -> bool:
-        pass
+        if self.ammo >= n:
+            self.ammo -= n
+            return True
+        else:
+            return False
 
-    def damage(self, accuracy: float) -> float:
-        pass
+    def roll_damage(self):
+        return randint(0, self.max_damage)
+
+    def damage(self,
+               accuracy: float) -> float:
+        return self.roll_damage() * accuracy
+    
+    def is_available(self):
+        return self.ammo > 0
 
 
 class Structure(Entity):
@@ -155,7 +186,7 @@ class Player(Entity, Damageable, Attacker):
     def move(self,
              d_row: int,
              d_col: int,
-             board: Board) -> None:
+             board: 'Board') -> None:
         self.position = (self.position[0] + d_row, self.position[1] + d_col)
         board.reveal(self.position)
 
@@ -188,7 +219,8 @@ class Player(Entity, Damageable, Attacker):
         return Fore.GREEN+"P"+Style.RESET_ALL
     
     def change_fight(self) -> None:
-        pass
+        if self.fight: self.fight = False
+        else: self.fight = True
 
     def add_to_inventory(self,
                          bonus: Bonus) -> None:
@@ -201,7 +233,7 @@ class Player(Entity, Damageable, Attacker):
             print(f"{Fore.YELLOW}{type(bonus).__name__}{Style.RESET_ALL} added to Inventory!")
         
         elif key == "Coins":
-            self.add_coins(bonus.amount)
+            bonus.apply()
             
         elif key == "Arrows":
             if isinstance(self.weapon, Bow):
@@ -223,7 +255,7 @@ class Player(Entity, Damageable, Attacker):
         """Displays player's inventory"""
         
         print(f"\n{Fore.LIGHTGREEN_EX}--- Inventory ---{Style.RESET_ALL}")
-        print(f"Weapon: {Fore.BLUE}{self.weapon.name}{Style.RESET_ALL} (Max Damage: {self.weapon.max_damage})")
+        print(f"Weapon: {Fore.BLUE}{self.weapon.name}{Style.RESET_ALL} (Max Damage: {self.weapon.max_damage})" + (f" (Ammo: {self.weapon.ammo})" if type(self.weapon).__name__ in ("Bow", "Revolver") else ""))
         for key, items in self.inventory.items():
             print(f"{Fore.YELLOW}{key}{Style.RESET_ALL}: {len(items)}")
         print(f"{Fore.YELLOW}Coins{Style.RESET_ALL}: {self.coins}")
@@ -308,6 +340,9 @@ class Fist(MeleeWeapon):
     
     def roll_damage(self):
         return randint(0, self.max_damage)
+    
+    def is_available(self):
+        return True
 
 class Stick(MeleeWeapon):
     
@@ -324,6 +359,9 @@ class Stick(MeleeWeapon):
     
     def roll_damage(self):
         return randint(0, self.max_damage)
+    
+    def is_available(self):
+        return self.durability > 0
 
 
 class Bow(RangedWeapon):
@@ -430,7 +468,7 @@ class Coins(Bonus):
 
     def apply(self,
               player: Player) -> None:
-        pass
+        player.add_coins(self.amount)
 
 
 
@@ -444,7 +482,9 @@ class Tower(Structure):
     def interact(self,
                  player: Player,
                  board: 'Board'):
-        pass
+        for i in range(-1, 2):
+            for j in range(-1, 2):
+                board.reveal((player.position[0]+i, player.position[0]+j))
 
     def symbol(self) -> str:
         return Fore.MAGENTA+"T"+Style.RESET_ALL
@@ -506,6 +546,22 @@ class Board:
                         print("X|", end="")
             print()
         print("-" * (self.cols * 2 + 1))
+
+def fight(player: Player,
+          enemy: Enemy):
+    """Fighting scene"""
+
+    print(f"\n{Fore.LIGHTRED_EX}Fight Started{Style.RESET_ALL}\n")
+    
+    while player.is_alive() and enemy.is_alive():
+        enemy.before_turn(player)
+        player_choice = input(f"""Choose your action:
+1. Attack
+2. Use Bonus3\
+Action: """).strip().lower()
+    
+    
+
 
 def startup() -> str:
     """Shows startup screen"""
@@ -637,6 +693,7 @@ Move: """).strip().lower()
             
             if isinstance(entity, Structure):
                 print(f"\nYou have encountered a {Fore.MAGENTA}{type(entity).__name__}{Style.RESET_ALL}!")
+                entity.interact(player, board)
                 
             elif isinstance(entity, Bonus):
                 print(f"\nYou have found a bonus: {Fore.YELLOW}{type(entity).__name__}{Style.RESET_ALL}!")
@@ -645,13 +702,18 @@ Move: """).strip().lower()
                 
             elif isinstance(entity, Weapon):
                 print(f"\nYou have found a {Fore.BLUE}{type(entity).__name__}{Style.RESET_ALL}!")
-                weapon_choice = input(f"Would you like to swap your {Fore.BLUE}{type(player.weapon).__name__}{Style.RESET_ALL} for a {Fore.BLUE}{type(entity).__name__}{Style.RESET_ALL}? (y/n): ")
+                player_ammo_str = f" (Ammo: {player.weapon.ammo})" if type(player.weapon).__name__ in ("Bow", "Revolver") else ""
+                new_ammo_str = f" (Ammo: {entity.ammo})" if type(entity).__name__ in ("Bow", "Revolver") else ""
+                weapon_choice = input(f"\nWould you like to swap your {Fore.BLUE}{type(player.weapon).__name__}{Style.RESET_ALL}{player_ammo_str} for a {Fore.BLUE}{type(entity).__name__}{Style.RESET_ALL}{new_ammo_str}? (y/n): ")
                 if weapon_choice.strip().lower() == "y":
                     player.choose_weapon(entity)
                     board.place(None, player.position)
                 
             elif isinstance(entity, Enemy):
                 print(f"\nYou have encountered an {Fore.RED}{type(entity).__name__}{Style.RESET_ALL}!")
+                player.change_fight()
+                fight(player, entity)
+                player.change_fight()
             
         input("\nPress Enter to continue...")
         
@@ -659,6 +721,7 @@ Move: """).strip().lower()
             clear()
             board.render(player)
             print(f"\n{Fore.CYAN}You Won!{Style.RESET_ALL}")
+            print(f"{Fore.YELLOW}Coins{Style.RESET_ALL}: {player.coins}")
             break
 
 parser = argparse.ArgumentParser()

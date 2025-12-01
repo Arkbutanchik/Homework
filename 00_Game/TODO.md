@@ -1,14 +1,14 @@
-- [ ] Damageable.is_alive
-- [ ] Damageable.heal
-- [ ] Damageable.take_damage
+- [x] Damageable.is_alive
+- [x] Damageable.heal
+- [x] Damageable.take_damage
 - [ ] Attacker.attack
 - [ ] Bonus.apply
-- [ ] Weapon.roll_damage
-- [ ] Weapon.is_available
-- [ ] MeleeWeapon.damage
+- [x] Weapon.roll_damage
+- [x] Weapon.is_available
+- [x] MeleeWeapon.damage
 - [ ] RangedWeapon.consume_ammo
-- [ ] RangedWeapon.damage
-- [ ] Structure.interact
+- [x] RangedWeapon.damage
+- [x] Structure.interact
 - [ ] Enemy.before_turn
 - [ ] Enemy.roll_enemy_damage
 - [ ] Player.attack
