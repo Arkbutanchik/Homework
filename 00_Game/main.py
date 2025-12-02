@@ -175,7 +175,9 @@ class Player(Entity, Damageable, Attacker):
         self.inventory = {
             "Medkit": [],
             "Rage": [],
-            "Accuracy": []
+            "Accuracy": [],
+            "Arrows": [],
+            "Bullets": []
         }
         
         self.coins = 0
@@ -183,8 +185,6 @@ class Player(Entity, Damageable, Attacker):
         self.accuracy = 1.0
         self.status = {}
         self.fight = False
-        self.arrows = 0 # store arrows if bow is not equipped
-        self.bullets = 0 # store bullets if revolver is not equipped
         
     def move(self,
              d_row: int,
@@ -228,11 +228,11 @@ class Player(Entity, Damageable, Attacker):
 
     def use_bonus(self,
                   bonus: Bonus) -> None:
-        pass
+        """Unnecessary man in the middle method, functionality implemented in Bonus.apply()"""
 
     def buy_auto_if_needed(self,
                            bonus: str) -> Bonus:
-        pass
+        """Unnecessary, no useful bonuses can be bought automatically"""
 
     def symbol(self) -> str:
         return Fore.GREEN+"P"+Style.RESET_ALL
@@ -260,29 +260,103 @@ class Player(Entity, Damageable, Attacker):
                 self.weapon.ammo += bonus.amount
                 print(f"{Fore.YELLOW}{bonus.amount} Arrows{Style.RESET_ALL} added to your {Fore.BLUE}Bow{Style.RESET_ALL}!")
             else:
-                self.arrows += bonus.amount
-                print(f"{Fore.YELLOW}{bonus.amount} Arrows{Style.RESET_ALL} added to Inventory!")
+                self.inventory["Arrows"].append(bonus)
+                print(f"{Fore.YELLOW}Arrows{Style.RESET_ALL} added to Inventory!")
                 
         elif key == "Bullets":
             if isinstance(self.weapon, Revolver):
                 self.weapon.ammo += bonus.amount
                 print(f"{Fore.YELLOW}{bonus.amount} Bullets{Style.RESET_ALL} added to your {Fore.BLUE}Revolver{Style.RESET_ALL}!")
             else:
-                self.bullets += bonus.amount
-                print(f"{Fore.YELLOW}{bonus.amount} Bullets{Style.RESET_ALL} added to Inventory!")
+                self.inventory["Bullets"].append(bonus)
+                print(f"{Fore.YELLOW}Bullets{Style.RESET_ALL} added to Inventory!")
         
-    def show_inventory(self) -> None:
+    def show_inventory(self,
+                       board: Board) -> None:
         """Displays player's inventory"""
         
-        print(f"\n{Fore.LIGHTGREEN_EX}--- Inventory ---{Style.RESET_ALL}")
+        print(f"\n{Fore.GREEN}--- Inventory ---{Style.RESET_ALL}")
+        
         print(f"Weapon: {Fore.BLUE}{self.weapon.name}{Style.RESET_ALL} (Max Damage: {self.weapon.max_damage})" + (f" (Ammo: {self.weapon.ammo})" if type(self.weapon).__name__ in ("Bow", "Revolver") else ""))
-        for key, items in self.inventory.items():
-            print(f"{Fore.YELLOW}{key}{Style.RESET_ALL}: {len(items)}")
-        print(f"{Fore.YELLOW}Coins{Style.RESET_ALL}: {self.coins}")
-        print(f"{Fore.YELLOW}Arrows{Style.RESET_ALL}: {self.arrows}")
-        print(f"{Fore.YELLOW}Bullets{Style.RESET_ALL}: {self.bullets}")
-        print(f"{Fore.LIGHTGREEN_EX}-----------------{Style.RESET_ALL}\n")
-
+        
+        print(f"{Fore.YELLOW}Coins{Style.RESET_ALL}: {self.coins}\n")
+        
+        bonus_choice = input(f"""Usable bonuses:
+1. {Fore.YELLOW}Medkit{Style.RESET_ALL}: {len(self.inventory["Medkit"])}
+2. {Fore.YELLOW}Rage{Style.RESET_ALL}: {len(self.inventory["Rage"])}
+3. {Fore.YELLOW}Accuracy{Style.RESET_ALL}: {len(self.inventory["Accuracy"])}
+4. {Fore.YELLOW}Arrows{Style.RESET_ALL}: {sum(bonus.amount for bonus in self.inventory["Arrows"])}
+5. {Fore.YELLOW}Bullets{Style.RESET_ALL}: {sum(bonus.amount for bonus in self.inventory["Bullets"])}
+6. Close Inventory
+Your choice: """)
+        
+        clear()
+        board.render(player)
+        print()
+        
+        if bonus_choice.strip() == "1":
+            if len(self.inventory["Medkit"]) > 0:
+                print(f"{Fore.YELLOW}Medkits{Style.RESET_ALL}:")
+                for i in range(len(self.inventory["Medkit"])):
+                    print(f"{i+1}. Heals {self.inventory["Medkit"][i].power} HP")
+                player_choice = input(f"Use Medkit (1-{len(self.inventory["Medkit"])}): ")
+                medkit = self.inventory["Medkit"].pop(int(player_choice.strip())-1)
+                medkit.apply(self)
+            else:
+                print("No Medkits in inventory!")
+                
+        elif bonus_choice.strip() == "2":
+            if len(self.inventory["Rage"]) > 0:
+                print(f"{Fore.YELLOW}Rage bonuses{Style.RESET_ALL}:")
+                for i in range(len(self.inventory["Rage"])):
+                    print(f"{i+1}. +{self.inventory["Rage"][i].multiplier} Rage")
+                player_choice = input(f"Use Rage bonus (1-{len(self.inventory["Rage"])}): ")
+                rage_bonus = self.inventory["Rage"].pop(int(player_choice.strip())-1)
+                rage_bonus.apply(self)
+            else:
+                print("No Rage bonuses in inventory!")
+                
+        elif bonus_choice.strip() == "3":
+            if len(self.inventory["Accuracy"]) > 0:
+                print(f"{Fore.YELLOW}Accuracy bonuses{Style.RESET_ALL}:")
+                for i in range(len(self.inventory["Accuracy"])):
+                    print(f"{i+1}. +{self.inventory["Accuracy"][i].multiplier} Accuracy")
+                player_choice = input(f"Use Accuracy bonus (1-{len(self.inventory["Accuracy"])}): ")
+                accuracy_bonus = self.inventory["Accuracy"].pop(int(player_choice.strip())-1)
+                accuracy_bonus.apply(self)
+            else:
+                print("No Accuracy bonuses in inventory!")
+                
+        elif bonus_choice.strip() == "4":
+            if type(player.weapon).__name__ == "Bow":
+                if len(self.inventory["Arrows"]) > 0:
+                    print(f"Arrows: {sum(bonus.amount for bonus in self.inventory["Arrows"])}")
+                    player_choice = input("Load Arrows? (y/n): ")
+                    for i in range(len(self.inventory["Arrows"])):
+                        arrows_bonus = self.inventory["Arrows"][i]
+                        arrows_bonus.apply(self)
+                    self.inventory["Arrows"] = []
+                else:
+                    print("No Arrows in inventory!")
+            else:
+                print("You don't have a Bow!")
+                
+        elif bonus_choice.strip() == "5":
+            if type(player.weapon).__name__ == "Revolver":
+                if len(self.inventory["Bullets"]) > 0:
+                    print(f"Bullets: {sum(bonus.amount for bonus in self.inventory["Bullets"])}")
+                    player_choice = input("Load Bullets? (y/n): ")
+                    for i in range(len(self.inventory["Bullets"])):
+                        bullets_bonus = self.inventory["Bullets"][i]
+                        bullets_bonus.apply(self)
+                    self.inventory["Bullets"] = []
+                else:
+                    print("No Bullets in inventory!")
+            else:
+                print("You don't have a Revolver!")
+        
+        print()       
+        
 
 class Rat(Enemy):
 
@@ -372,13 +446,27 @@ class Skeleton(Enemy):
 
     def attack(self,
                target: Damageable) -> float:
-        damage = self.roll_enemy_damage()
-        actual_damage = target.take_damage(damage)
-        return actual_damage
+    
+        if player.weapon.is_available():
+            if type(self.weapon).__name__ in ("Fist", "Stick"):
+                damage_dealt = self.weapon.damage(1)
+            else:
+                damage_dealt = self.weapon.damage(1)
+                self.weapon.consume_ammo()
+            actual_damage = target.take_damage(damage_dealt)
+            return actual_damage
 
     def drop_loot(self,
                   player: Player) -> Weapon | None:
-        pass
+        if type(self.weapon).__name__ != "Fist":
+            print(f"The {Fore.RED}Skeleton{Style.RESET_ALL} dropped a {Fore.BLUE}{type(self.weapon).__name__}{Style.RESET_ALL}!")
+            player_ammo_str = f" (Ammo: {player.weapon.ammo})" if type(player.weapon).__name__ in ("Bow", "Revolver") else ""
+            new_ammo_str = f" (Ammo: {self.weapon.ammo})" if type(self.weapon).__name__ in ("Bow", "Revolver") else ""
+            weapon_choice = input(f"\nWould you like to swap your {Fore.BLUE}{type(player.weapon).__name__}{Style.RESET_ALL}{player_ammo_str} for a {Fore.BLUE}{type(self.weapon).__name__}{Style.RESET_ALL}{new_ammo_str}? (y/n): ")
+            if weapon_choice.strip().lower() == "y":
+                player.choose_weapon(self.weapon)
+            return self.weapon
+        return None
 
 
 
@@ -452,7 +540,9 @@ class Arrows(Bonus):
 
     def apply(self,
               player: Player) -> None:
-        pass
+        if isinstance(player.weapon, Bow):
+            player.weapon.ammo += self.amount
+            print(f"{Fore.YELLOW}{self.amount} Arrows{Style.RESET_ALL} added to your {Fore.BLUE}Bow{Style.RESET_ALL}!")
 
 class Bullets(Bonus):
     
@@ -463,7 +553,9 @@ class Bullets(Bonus):
 
     def apply(self,
               player: Player) -> None:
-        pass
+        if isinstance(player.weapon, Revolver):
+            player.weapon.ammo += self.amount
+            print(f"{Fore.YELLOW}{self.amount} Bullets{Style.RESET_ALL} added to your {Fore.BLUE}Revolver{Style.RESET_ALL}!")
 
 
 class Accuracy(Bonus):
@@ -584,15 +676,20 @@ def fight(player: Player,
 2. Use Bonus
 Action: """).strip().lower()
         if player_choice == "1":
-            damage_dealt = player.attack(enemy)
+            damage_dealt = round(player.attack(enemy), 1)
             print(f"\nYou dealt {Fore.GREEN}{damage_dealt} damage{Style.RESET_ALL} to the {Fore.RED}{type(enemy).__name__}{Style.RESET_ALL}!")
             if enemy.is_alive():
                 print(f"{Fore.GREEN}Player{Style.RESET_ALL} HP: {Fore.GREEN}{player.hp}/{player.max_hp}{Style.RESET_ALL}")
                 print(f"{Fore.RED}{type(enemy).__name__}{Style.RESET_ALL} HP: {Fore.RED}{enemy.hp}/{enemy.max_hp}{Style.RESET_ALL}")
             else:
                 print(f"\n{Fore.GREEN}{type(enemy).__name__} defeated!{Style.RESET_ALL}")
+                if isinstance(enemy, Skeleton):
+                    enemy.drop_loot(player)
+                print(f"You received {Fore.YELLOW}{enemy.reward_coins} coins{Style.RESET_ALL}!")
+                player.add_coins(enemy.reward_coins)
                 board.place(None, player.position)
-            damage_dealt = enemy.attack(player)
+                break
+            damage_dealt = round(enemy.attack(player), 1)
             print(f"\nThe {Fore.RED}{type(enemy).__name__}{Style.RESET_ALL} dealt {Fore.RED}{damage_dealt} damage{Style.RESET_ALL} to you!")
             if player.is_alive():
                 print(f"{Fore.GREEN}Player{Style.RESET_ALL} HP: {Fore.GREEN}{player.hp}/{player.max_hp}{Style.RESET_ALL}")
@@ -600,6 +697,12 @@ Action: """).strip().lower()
             else:
                 print(f"\n{Fore.RED}You died!{Style.RESET_ALL}")
                 exit()
+            if isinstance(player.weapon, RangedWeapon):
+                if player.weapon.ammo == 0:
+                    player.choose_weapon(Fist((0, 0)))
+            if isinstance(enemy, Skeleton):
+                if enemy.weapon.ammo == 0:
+                    enemy.weapon = Fist((0, 0))
         player.apply_status_tick()
     
 
@@ -670,7 +773,8 @@ def start(n: int,
                 bonuses = [Medkit((x, y)), Rage((x, y)), Arrows((x, y)), Bullets((x, y)), Accuracy((x, y)), Coins((x, y))]
                 cell = bonuses[randint(0, 5)]
             if cell == "E":
-                enemies = [Rat((x, y)), Spider((x, y)), Skeleton((x, y), Fist((0, 0)))]
+                skeleton_weapon = [Fist((0, 0)), Stick((0, 0)), Bow((0, 0)), Revolver((0, 0))]
+                enemies = [Rat((x, y)), Spider((x, y)), Skeleton((x, y), skeleton_weapon[randint(0, 3)])]
                 cell = enemies[randint(0, 2)]
             if cell == " ": 
                 cell = None
@@ -719,7 +823,7 @@ Move: """).strip().lower()
         elif player_input == "e":
             clear()
             board.render(player)
-            player.show_inventory()
+            player.show_inventory(board)
             input("Press Enter to continue...")
             continue
         else:
@@ -735,11 +839,17 @@ Move: """).strip().lower()
             if isinstance(entity, Structure):
                 print(f"\nYou have encountered a {Fore.MAGENTA}{type(entity).__name__}{Style.RESET_ALL}!")
                 entity.interact(player, board)
+                input("Press Enter to continue...\n")
                 
             elif isinstance(entity, Bonus):
                 print(f"\nYou have found a bonus: {Fore.YELLOW}{type(entity).__name__}{Style.RESET_ALL}!")
-                player.add_to_inventory(entity)
+                if isinstance(entity, Coins):
+                    entity.apply(player)
+                    board.place(None, player.position)
+                else:
+                    player.add_to_inventory(entity)
                 board.place(None, player.position)
+                input("Press Enter to continue...\n")
                 
             elif isinstance(entity, Weapon):
                 print(f"\nYou have found a {Fore.BLUE}{type(entity).__name__}{Style.RESET_ALL}!")
@@ -758,9 +868,9 @@ Move: """).strip().lower()
                 player.change_fight()
                 fight(player, entity, board)
                 player.change_fight()
-            
-        input("\nPress Enter to continue...")
-        
+                input("Press Enter to continue...\n")
+                
+                
         if player.position == board.goal:
             clear()
             board.render(player)

@@ -2,7 +2,7 @@
 - [x] Damageable.heal
 - [x] Damageable.take_damage
 - [x] Attacker.attack
-- [ ] Bonus.apply
+- [x] Bonus.apply
 - [x] Weapon.roll_damage
 - [x] Weapon.is_available
 - [x] MeleeWeapon.damage
@@ -13,8 +13,8 @@
 - [x] Enemy.roll_enemy_damage
 - [x] Player.attack
 - [x] Player.apply_status_tick
-- [ ] Player.use_bonus
-- [ ] Player.buy_auto_if_needed
+- [x] Player.use_bonus
+- [x] Player.buy_auto_if_needed
 - [x] Player.change_fight
 - [x] Rat.before_turn
 - [x] Rat.attack
@@ -22,7 +22,7 @@
 - [x] Spider.attack
 - [x] Skeleton.before_turn
 - [x] Skeleton.attack
-- [ ] Skeleton.drop_loot
+- [x] Skeleton.drop_loot
 - [x] Fist.damage
 - [x] Fist.roll_damage
 - [x] Stick.is_available
@@ -36,7 +36,7 @@
 - [x] Revolver.roll_damage
 - [x] Medkit.apply
 - [x] Rage.apply
-- [ ] Arrows.apply
-- [ ] Bullets.apply
+- [x] Arrows.apply
+- [x] Bullets.apply
 - [x] Accuracy.apply
 - [x] Coins.apply
