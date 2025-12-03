@@ -179,6 +179,8 @@ class Player(Entity, Damageable, Attacker):
             "Arrows": [],
             "Bullets": []
         }
+
+        self.fight_queue = [] # TODO
         
         self.coins = 0
         self.rage = 1.0
@@ -290,9 +292,10 @@ class Player(Entity, Damageable, Attacker):
 6. Close Inventory
 Your choice: """)
         
-        clear()
-        board.render(player)
-        print()
+        if not player.fight:
+            clear()
+            board.render(player)
+            print()
         
         if bonus_choice.strip() == "1":
             if len(self.inventory["Medkit"]) > 0:
@@ -377,6 +380,7 @@ class Rat(Enemy):
             if chance <= self.flee_chance_low_hp:
                 print(f"{Fore.RED}Rat{Style.RESET_ALL} fleed!")
                 self.hp = 0
+                return "fled"
         
         infection_chance_roll = randint(1, 100) / 100
         if infection_chance_roll <= self.infection_chance:
@@ -442,7 +446,7 @@ class Skeleton(Enemy):
 
     def before_turn(self,
                     player: Player):
-        pass
+        """Does nothing"""
 
     def attack(self,
                target: Damageable) -> float:
@@ -659,6 +663,7 @@ class Board:
                         print("X|", end="")
             print()
         print("-" * (self.cols * 2 + 1))
+        print(f"HP: {Fore.GREEN}{player.hp}/{player.max_hp}{Style.RESET_ALL} | Weapon: {Fore.BLUE}{player.weapon.name}{Style.RESET_ALL} | Coins: {Fore.YELLOW}{player.coins}{Style.RESET_ALL}")
 
 
 def fight(player: Player,
@@ -670,7 +675,10 @@ def fight(player: Player,
     print(f"{Fore.RED}{type(enemy).__name__}{Style.RESET_ALL} HP: {Fore.RED}{enemy.hp}/{enemy.max_hp}{Style.RESET_ALL}")
     
     while player.is_alive() and enemy.is_alive():
-        enemy.before_turn(player)
+        result = enemy.before_turn(player)
+        if result == "fled":
+            board.place(None, player.position)
+            break
         player_choice = input("""\nChoose your action:
 1. Attack
 2. Use Bonus
@@ -701,11 +709,15 @@ Action: """).strip().lower()
                 if player.weapon.ammo == 0:
                     player.choose_weapon(Fist((0, 0)))
             if isinstance(enemy, Skeleton):
-                if enemy.weapon.ammo == 0:
+                if not enemy.weapon.is_available():
                     enemy.weapon = Fist((0, 0))
-        player.apply_status_tick()
+            player.apply_status_tick()
+        
+        elif player_choice == "2":
+            player.show_inventory(board)
     
 
+# TODO add save/load functionality
 
 def startup() -> str:
     """Shows startup screen"""
