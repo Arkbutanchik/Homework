@@ -1,8 +1,12 @@
 from abc import ABC, abstractmethod
 from random import shuffle, randint
 import os
+import json
 import argparse
 from colorama import Fore, Style
+
+
+SAVE_FILE = "save.json"
 
 class Entity(ABC):
 
@@ -727,8 +731,6 @@ Action: """).strip().lower()
             player.show_inventory(board)
     
 
-# TODO add save/load functionality
-
 def startup() -> str:
     """Shows startup screen"""
     
@@ -828,6 +830,7 @@ Enter your move:
 3. S (down)
 4. D (right)
 5. E (inventory)
+6. Q (exit)
 Move: """).strip().lower()
         if player_input in ("w", "a", "s", "d"):
             if player_input == "w" and board.in_bounds((player.position[0]-1, player.position[1])):
@@ -848,6 +851,9 @@ Move: """).strip().lower()
             player.show_inventory(board)
             input("Press Enter to continue...")
             continue
+        elif player_input == "q":
+            save_game(board, player)
+            return
         else:
             input("Invalid input. Press Enter to move...")
             continue
@@ -912,37 +918,342 @@ DEBUG_DISABLE_CLEARS = args.disable_clears # disables console clears
 DEBUG_SHOW_UNOPENED_CELLS = args.show_unopened_cells # shows all cells as revealed
 DEBUG_DISABLE_INTERACTIONS = args.disable_interactions # disables interactions with cells
 
+def serialize_player(player):
+    data = {}
+    data["position"] = [player.position[0], player.position[1]]
+    data["hp"] = player.hp
+    data["max_hp"] = player.max_hp
+    data["lvl"] = player.lvl
+    data["coins"] = player.coins
+    data["rage"] = player.rage
+    data["accuracy"] = player.accuracy
+    data["fight"] = player.fight
+    data["status"] = player.status
+    data["inventory"] = {}
+    for key in player.inventory:
+        data["inventory"][key] = []
+        for item in player.inventory[key]:
+            data["inventory"][key].append(item.__class__.__name__)
+    data["weapon"] = {
+        "type": player.weapon.__class__.__name__,
+        "position": [player.weapon.position[0], player.weapon.position[1]],
+        "name": player.weapon.name,
+        "max_damage": player.weapon.max_damage,
+        "ammo": getattr(player.weapon, "ammo", None)
+    }
+    return data
+
+
+def deserialize_player(data):
+    player = Player(data["lvl"])
+    player.position = (data["position"][0], data["position"][1])
+    player.hp = data["hp"]
+    player.max_hp = data["max_hp"]
+    player.coins = data["coins"]
+    player.rage = data["rage"]
+    player.accuracy = data["accuracy"]
+    player.fight = data["fight"]
+    player.status = data["status"]
+
+    if data["weapon"]["type"] == "Fist":
+        weapon = Fist(tuple(data["weapon"]["position"]))
+    else:
+        weapon = RangedWeapon(
+            tuple(data["weapon"]["position"]),
+            data["weapon"]["name"],
+            data["weapon"]["max_damage"],
+            data["weapon"]["ammo"]
+        )
+    player.weapon = weapon
+
+    for key in data["inventory"]:
+        for name in data["inventory"][key]:
+            player.inventory[key].append(name)
+
+    return player
+
+def serialize_enemy(enemy):
+    data = {}
+    data["type"] = enemy.__class__.__name__
+    data["position"] = [enemy.position[0], enemy.position[1]]
+    data["hp"] = enemy.hp
+    data["max_hp"] = enemy.max_hp
+    data["lvl"] = enemy.lvl
+    data["reward_coins"] = enemy.reward_coins
+    data["max_enemy_damage"] = enemy.max_enemy_damage
+
+    if data["type"] == "Skeleton":
+        data["weapon"] = {
+            "type": enemy.weapon.__class__.__name__,
+            "position": [enemy.weapon.position[0], enemy.weapon.position[1]],
+            "name": enemy.weapon.name,
+            "max_damage": enemy.weapon.max_damage,
+            "ammo": getattr(enemy.weapon, "ammo", None)
+        }
+    return data
+
+
+def deserialize_enemy(data):
+    pos = (data["position"][0], data["position"][1])
+    enemy_type = data["type"]
+
+    if enemy_type == "Rat":
+        enemy = Rat(pos)
+
+    elif enemy_type == "Spider":
+        enemy = Spider(pos)
+
+    elif enemy_type == "Skeleton":
+        weapon_data = data["weapon"]
+        
+        if weapon_data["type"] == "Fist":
+            weapon = Fist(
+                (weapon_data["position"][0], weapon_data["position"][1])
+            )
+        else:
+            ammo = weapon_data["ammo"]
+            if ammo is None:
+                ammo = 0
+
+            weapon = RangedWeapon(
+                (weapon_data["position"][0], weapon_data["position"][1]),
+                weapon_data["name"],
+                weapon_data["max_damage"],
+                ammo
+            )
+    
+
+        enemy = Skeleton(pos, weapon)
+
+    else:
+        return None
+
+    enemy.hp = data["hp"]
+    enemy.max_hp = data["max_hp"]
+    enemy.lvl = data["lvl"]
+    enemy.reward_coins = data["reward_coins"]
+    enemy.max_enemy_damage = data["max_enemy_damage"]
+
+    return enemy
+
+def serialize_weapon(weapon):
+    data = {}
+    data["type"] = weapon.__class__.__name__
+    data["position"] = [weapon.position[0], weapon.position[1]]
+    data["name"] = weapon.name
+    data["max_damage"] = weapon.max_damage
+    data["ammo"] = getattr(weapon, "ammo", None)
+    return data
+
+
+def deserialize_weapon(data):
+    pos = (data["position"][0], data["position"][1])
+
+    if data["type"] == "Fist":
+        return Fist(pos)
+
+    ammo = data["ammo"]
+    if ammo is None:
+        ammo = 0
+
+    return RangedWeapon(
+        pos,
+        data["name"],
+        data["max_damage"],
+        ammo
+    )
+
+
+def serialize_bonus(bonus):
+    data = {}
+    data["type"] = bonus.__class__.__name__
+    data["position"] = [bonus.position[0], bonus.position[1]]
+    return data
+
+
+def deserialize_bonus(data):
+    pos = (data["position"][0], data["position"][1])
+
+    if data["type"] == "Medkit":
+        return Medkit(pos)
+    if data["type"] == "Rage":
+        return Rage(pos)
+    if data["type"] == "Accuracy":
+        return Accuracy(pos)
+    if data["type"] == "Arrows":
+        return Arrows(pos)
+    if data["type"] == "Bullets":
+        return Bullets(pos)
+
+    return None
+
+
+def serialize_structure(structure):
+    data = {}
+    data["type"] = structure.__class__.__name__
+    data["position"] = [structure.position[0], structure.position[1]]
+    return data
+
+
+def deserialize_structure(data):
+    pos = (data["position"][0], data["position"][1])
+
+    if data["type"] == "Tower":
+        return Tower(pos)
+
+    return None
+
+
+def serialize_board(board):
+    data = {}
+    data["rows"] = board.rows
+    data["cols"] = board.cols
+    data["start"] = [board.start[0], board.start[1]]
+    data["goal"] = [board.goal[0], board.goal[1]]
+    data["grid"] = []
+
+    for row in board.grid:
+        row_data = []
+        for entity, revealed in row:
+            if entity is None:
+                row_data.append({
+                    "entity": None,
+                    "revealed": revealed
+                })
+
+            elif isinstance(entity, Enemy):
+                row_data.append({
+                    "entity": "enemy",
+                    "data": serialize_enemy(entity),
+                    "revealed": revealed
+                })
+
+            elif isinstance(entity, Weapon):
+                row_data.append({
+                    "entity": "weapon",
+                    "data": serialize_weapon(entity),
+                    "revealed": revealed
+                })
+
+            elif isinstance(entity, Bonus):
+                row_data.append({
+                    "entity": "bonus",
+                    "data": serialize_bonus(entity),
+                    "revealed": revealed
+                })
+
+            elif isinstance(entity, Structure):
+                row_data.append({
+                    "entity": "structure",
+                    "data": serialize_structure(entity),
+                    "revealed": revealed
+                })
+
+            else:
+                row_data.append({
+                    "entity": None,
+                    "revealed": revealed
+                })
+
+        data["grid"].append(row_data)
+
+
+    return data
+
+
+def deserialize_board(data):
+    grid = []
+
+    for row in data["grid"]:
+        grid_row = []
+        for cell in row:
+            if cell["entity"] is None:
+                grid_row.append((None, cell["revealed"]))
+
+            elif cell["entity"] == "enemy":
+                entity = deserialize_enemy(cell["data"])
+                grid_row.append((entity, cell["revealed"]))
+
+            elif cell["entity"] == "weapon":
+                entity = deserialize_weapon(cell["data"])
+                grid_row.append((entity, cell["revealed"]))
+
+            elif cell["entity"] == "bonus":
+                entity = deserialize_bonus(cell["data"])
+                grid_row.append((entity, cell["revealed"]))
+
+            elif cell["entity"] == "structure":
+                entity = deserialize_structure(cell["data"])
+                grid_row.append((entity, cell["revealed"]))
+
+            else:
+                grid_row.append((None, cell["revealed"]))
+
+        grid.append(grid_row)
+
+
+    board = Board(
+        data["rows"],
+        data["cols"],
+        grid,
+        tuple(data["start"]),
+        tuple(data["goal"])
+    )
+    return board
+
+
+def save_game(board, player):
+    data = {
+        "player": serialize_player(player),
+        "board": serialize_board(board)
+    }
+    with open(SAVE_FILE, "w", encoding="utf-8") as f:
+        json.dump(data, f)
+
+
+def load_game():
+    with open(SAVE_FILE, "r", encoding="utf-8") as f:
+        data = json.load(f)
+    player = deserialize_player(data["player"])
+    board = deserialize_board(data["board"])
+    return board, player
+
 if __name__ == "__main__":
+
     try:
         clear()
         
-        if DEBUG_SKIP_INTRO:
-            board, player = start(6, 6, 1)
-            game(board, player)
+        if os.path.exists(SAVE_FILE):
+            board, player = load_game()
         else:
-            difficulty = startup()
-            print()
-            if difficulty in ("1", "easy"):
-                board_size = (randint(5, 7), randint(5, 7))
-                player_lvl = 1
-                print(f"Starting game on {Fore.GREEN}Easy{Style.RESET_ALL} difficulty.")
-            elif difficulty in ("2", "normal"):
-                board_size = (randint(8, 11), randint(8, 11))
-                player_lvl = 2
-                print(f"Starting game on {Fore.YELLOW}Normal{Style.RESET_ALL} difficulty.")
-            elif difficulty in ("3", "hard"):
-                board_size = (randint(12, 15), randint(12, 15))
-                player_lvl = 3
-                print(f"Starting game on {Fore.RED}Hard{Style.RESET_ALL} difficulty.")
+            if DEBUG_SKIP_INTRO:
+                board, player = start(6, 6, 1)
             else:
-                print(f"Invalid input, starting game on {Fore.YELLOW}Normal{Style.RESET_ALL} difficulty.")
-                board_size = (randint(8, 11), randint(8, 11))
-                player_lvl = 2
+                difficulty = startup()
+                print()
+                if difficulty in ("1", "easy"):
+                    board_size = (randint(5, 7), randint(5, 7))
+                    player_lvl = 1
+                    print(f"Starting game on {Fore.GREEN}Easy{Style.RESET_ALL} difficulty.")
+                elif difficulty in ("2", "normal"):
+                    board_size = (randint(8, 11), randint(8, 11))
+                    player_lvl = 2
+                    print(f"Starting game on {Fore.YELLOW}Normal{Style.RESET_ALL} difficulty.")
+                elif difficulty in ("3", "hard"):
+                    board_size = (randint(12, 15), randint(12, 15))
+                    player_lvl = 3
+                    print(f"Starting game on {Fore.RED}Hard{Style.RESET_ALL} difficulty.")
+                else:
+                    print(f"Invalid input, starting game on {Fore.YELLOW}Normal{Style.RESET_ALL} difficulty.")
+                    board_size = (randint(8, 11), randint(8, 11))
+                    player_lvl = 2
 
-            input("\nPress Enter to start the game...")
-            clear()
+                input("\nPress Enter to start the game...")
+                clear()
 
-            board, player = start(board_size[0], board_size[1], player_lvl)
-            game(board, player)
+                board, player = start(board_size[0], board_size[1], player_lvl)
+        
+        game(board, player)
+        
     except KeyboardInterrupt:
         print(f"\n\n{Fore.CYAN}Game exited.{Style.RESET_ALL}")
